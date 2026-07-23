@@ -1,0 +1,10 @@
+Checks: >
+  -*,
+  bugprone-*,
+  modernize-*,
+  performance-*,
+  readability-*,
+  misc-*
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*'
+FormatStyle: none

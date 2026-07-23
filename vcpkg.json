@@ -1,0 +1,10 @@
+{
+  "name": "ragcli",
+  "version-string": "0.1.0",
+  "description": "Generated C++ project",
+  "dependencies": [
+    "cpr",
+    "nlohmann-json",
+    "spdlog"
+  ]
+}

@@ -1,0 +1,63 @@
+diff --git a/include/llm_client/llm_client_factory.hpp b/include/llm_client/llm_client_factory.hpp
+index 25bd18c..d188fb7 100644
+--- a/include/llm_client/llm_client_factory.hpp
++++ b/include/llm_client/llm_client_factory.hpp
+@@ -3,6 +3,7 @@
+ #include "llm_client/llm_client_interface.hpp"
+ #include <memory>
+ #include <string>
++#include <string_view>
+ 
+ namespace llm_client {
+ 
+@@ -11,7 +12,7 @@ public:
+   // 프로바이더 이름(예: "openai", "claude")과 API 키 지정
+   // azure 제공자는 api_version을 추가 지정할 수 있습니다.
+   static std::unique_ptr<LLMClientInterface>
+-  create(const std::string &provider, const std::string &api_key,
++  create(std::string_view provider, const std::string &api_key,
+          const std::string &base_url = "",
+          const std::string &api_version = "");
+ };
+diff --git a/src/llm_client.cpp b/src/llm_client.cpp
+index 2a28153..cd8b8af 100644
+--- a/src/llm_client.cpp
++++ b/src/llm_client.cpp
+@@ -6,11 +6,12 @@
+ #include "llm_client/logger.hpp"
+ #include "llm_client/ollama_client.hpp"
+ #include "llm_client/openai_client.hpp"
++#include <string_view>
+ 
+ namespace llm_client {
+ 
+ std::unique_ptr<LLMClientInterface>
+-LLMClientFactory::create(const std::string &provider,
++LLMClientFactory::create(std::string_view provider,
+                          const std::string &api_key,
+                          const std::string &base_url,
+                          const std::string &api_version) {
+@@ -35,9 +36,10 @@ LLMClientFactory::create(const std::string &provider,
+         api_key, base_url.empty() ? "https://api.anthropic.com/v1" : base_url);
+   } else if (provider == "gemini") {
+     return std::make_unique<GeminiClient>(
+-        api_key, base_url.empty()
+-                     ? "https://generativelanguage.googleapis.com/v1beta"
+-                     : base_url);
++        api_key,
++        base_url.empty()
++            ? "https://generativelanguage.googleapis.com/v1beta"
++            : base_url);
+   } else if (provider == "ollama") {
+     return std::make_unique<OllamaClient>(
+         base_url.empty() ? "http://localhost:11434" : base_url, api_key);
+@@ -49,7 +51,8 @@ LLMClientFactory::create(const std::string &provider,
+     return std::make_unique<OpenAIClient>(api_key, base_url);
+   } else {
+     LLM_LOG_ERROR("Unknown LLM provider requested: {}", provider);
+-    throw ConfigurationException("Unknown LLM provider: " + provider);
++    throw ConfigurationException(
++        std::string("Unknown LLM provider: ") + std::string(provider));
+   }
+ }
+ 
