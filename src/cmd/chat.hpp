@@ -1,12 +1,15 @@
 #pragma once
 
 #include <iostream>
+#include <memory>
 #include <string>
-#include <vector>
 #include <wcppcli/wcli.hpp>
 #include <wcppcli/wlog.hpp>
 
+#include "chat/chat_config.hpp"
+#include "chat/chat_runner.hpp"
 #include "command.hpp"
+#include "flag_helper.hpp"
 #include "llm_client/llm_client_factory.hpp"
 #include "wcppcli/wconf.hpp"
 
@@ -21,81 +24,32 @@ class ChatCommand : public CommandBase {
         cmd->name = "chat";
         cmd->description = "Start an interactive chat session using Ollama LLM";
 
-        wcppcli::Flag model_flag;
-        model_flag.name = "model";
-        model_flag.shorthand = 'm';
-        model_flag.description = "Ollama model name (default: llama3)";
-        model_flag.value_ptr = &model_;
-        cmd->add_flag(model_flag);
+        add_string_flag(*cmd, "model", 'm', "Ollama model name (default: llama3)", &model_);
+        add_string_flag(*cmd, "url", 'u', "Ollama base URL (default: http://localhost:11434)",
+                        &base_url_);
 
-        wcppcli::Flag url_flag;
-        url_flag.name = "url";
-        url_flag.shorthand = 'u';
-        url_flag.description = "Ollama base URL (default: http://localhost:11434)";
-        url_flag.value_ptr = &base_url_;
-        cmd->add_flag(url_flag);
-
-        cmd->handler = [this](const wcppcli::Command &) { return run_chat(); };
+        cmd->handler = [this](const wcppcli::Command & /*unused*/) { return run_chat(); };
 
         root.add_command(std::move(cmd));
     }
 
   private:
     auto run_chat() -> int {
-        // WConf로 우선순위 설정 병합: CLI 플래그 > 환경 변수 > .env 파일 > 코드 기본값
         wcppcli::WConf conf;
         conf.read_file(".env");
 
-        // CLI 플래그가 비어있으면 WConf 값을 사용
-        std::string target_url = base_url_.empty() ? conf.get_string("OLLAMA_BASE_URL") : base_url_;
-        std::string target_model = model_.empty() ? conf.get_string("OLLAMA_MODEL") : model_;
+        const ragcli::chat::ChatTargets targets =
+            ragcli::chat::resolve_chat_targets(&base_url_, &model_, conf);
 
         wcppcli::WLog::info("Starting Ollama Chat Session");
-        wcppcli::WLog::info("URL: " + target_url + " | Model: " + target_model);
+        wcppcli::WLog::info("URL: " + targets.url + " | Model: " + targets.model);
         wcppcli::WLog::info("Type 'exit' or 'quit' to end chat.");
 
-        try {
-            auto client =
-                llm_client::LLMClientFactory::create("ollama", /*api_key=*/"", target_url);
-            llm_client::RequestParams params;
-            params.model = target_model;
+        auto llm_client =
+            llm_client::LLMClientFactory::create("ollama", /*api_key=*/"", targets.url);
+        ragcli::chat::ChatRunner runner(std::move(llm_client));
 
-            std::vector<llm_client::Message> conversation;
-
-            while (true) {
-                std::cout << "\nYou: ";
-                std::string input;
-                if (!std::getline(std::cin, input)) {
-                    wcppcli::WLog::info("Ending chat session.");
-                    break;
-                }
-
-                if (input == "exit" || input == "quit") {
-                    wcppcli::WLog::info("Ending chat session.");
-                    break;
-                }
-
-                if (input.empty()) {
-                    continue;
-                }
-
-                conversation.emplace_back("user", input);
-
-                try {
-                    auto response = client->chat(conversation, params);
-                    wcppcli::WLog::success("Ollama: " + response.content);
-                    conversation.emplace_back("assistant", response.content);
-                } catch (const std::exception &e) {
-                    wcppcli::WLog::error("Ollama Error: " + std::string(e.what()));
-                    conversation.pop_back();
-                }
-            }
-        } catch (const std::exception &e) {
-            wcppcli::WLog::error("Failed to initialize Ollama client: " + std::string(e.what()));
-            return 1;
-        }
-
-        return 0;
+        return runner.run(targets, {});
     }
 
     std::string model_;

@@ -29,12 +29,33 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(llm_client)
 
-add_executable(ragcli src/main.cpp)
+include(FetchContent)
+FetchContent_Declare(
+  cpppdf
+  SOURCE_DIR /home/seoyc/Workspace/utils/cpppdf
+)
+set(CPPPDF_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(CPPPDF_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(cpppdf)
+
+set(BUILD_TESTING ON CACHE BOOL "" FORCE)
+
+add_executable(ragcli
+  src/main.cpp
+  src/utils/stb_image_impl.cpp
+)
 target_include_directories(ragcli PRIVATE src)
 target_link_libraries(ragcli PRIVATE wcppcli)
 target_link_libraries(ragcli PRIVATE llm_client)
+target_link_libraries(ragcli PRIVATE cpppdf::cpppdf)
 
-target_compile_features(ragcli PRIVATE cxx_std_17)
+find_package(JPEG)
+if(JPEG_FOUND)
+  target_compile_definitions(ragcli PRIVATE CPPPDF_HAVE_JPEG)
+endif()
+
+find_package(Stb REQUIRED)
+target_include_directories(ragcli PRIVATE ${Stb_INCLUDE_DIR})
 
 include(CTest)
 if (BUILD_TESTING)

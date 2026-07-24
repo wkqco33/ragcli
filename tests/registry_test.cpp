@@ -8,11 +8,13 @@ TEST(RegisterCommands, AddsSubcommands) {
     wcppcli::Command root;
     auto holders = ragcli::cmd::register_commands(root);
 
-    ASSERT_EQ(root.subcommands.size(), 3U);
+    ASSERT_EQ(root.subcommands.size(), 4U);
     EXPECT_EQ(root.subcommands[0]->name, "greet");
     EXPECT_FALSE(root.subcommands[0]->description.empty());
     EXPECT_EQ(root.subcommands[1]->name, "chat");
     EXPECT_FALSE(root.subcommands[1]->description.empty());
     EXPECT_EQ(root.subcommands[2]->name, "rag");
     EXPECT_FALSE(root.subcommands[2]->description.empty());
+    EXPECT_EQ(root.subcommands[3]->name, "collection");
+    EXPECT_FALSE(root.subcommands[3]->description.empty());
 }

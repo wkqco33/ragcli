@@ -5,6 +5,7 @@
 #include <wcppcli/wlog.hpp>
 
 #include "command.hpp"
+#include "flag_helper.hpp"
 
 namespace ragcli::cmd {
 
@@ -17,14 +18,9 @@ class GreetCommand : public CommandBase {
         cmd->name = "greet";
         cmd->description = "Print a greeting message";
 
-        wcppcli::Flag name_flag;
-        name_flag.name = "name";
-        name_flag.shorthand = 'n';
-        name_flag.description = "Name to greet";
-        name_flag.value_ptr = &name_; // this 가 살아있는 동안 안전
-        cmd->add_flag(name_flag);
+        add_string_flag(*cmd, "name", 'n', "Name to greet", &name_);
 
-        cmd->handler = [this](const wcppcli::Command &) {
+        cmd->handler = [this](const wcppcli::Command & /*unused*/) {
             wcppcli::WLog::success("Hello, " + name_ + "! (from ragcli)");
             return 0;
         };

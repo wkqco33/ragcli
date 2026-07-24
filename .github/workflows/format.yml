@@ -1,0 +1,27 @@
+name: Format
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  clang-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: Check C++ formatting
+        run: |
+          set -e
+          mapfile -t files < <(find src tests -type f \( -name '*.cpp' -o -name '*.hpp' \))
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No C++ source files found."
+            exit 0
+          fi
+          clang-format --dry-run --Werror "${files[@]}"

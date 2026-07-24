@@ -5,6 +5,7 @@
 #include <wcppcli/wcli.hpp>
 
 #include "chat.hpp"
+#include "collection.hpp"
 #include "command.hpp"
 #include "greet.hpp"
 #include "rag.hpp"
@@ -20,6 +21,7 @@ inline auto register_commands(wcppcli::Command &root) -> std::vector<std::unique
     holders.emplace_back(std::make_unique<GreetCommand>());
     holders.emplace_back(std::make_unique<ChatCommand>());
     holders.emplace_back(std::make_unique<RagCommand>());
+    holders.emplace_back(std::make_unique<CollectionCommand>());
 
     for (auto &cmd : holders) {
         cmd->register_to(root);
