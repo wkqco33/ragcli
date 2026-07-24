@@ -31,6 +31,7 @@ TEST(ChatRunner, EchoesAssistantReplyFromMock) {
     ragcli::chat::ChatCallbacks callbacks;
     callbacks.read_input = make_input_provider(inputs, &eof_reached);
     callbacks.prompt_user = []() {};
+    callbacks.on_assistant_chunk = [](const std::string &) {};
     callbacks.on_assistant_reply = [&replies](const std::string &content) {
         replies.push_back(content);
     };
@@ -61,6 +62,7 @@ TEST(ChatRunner, EofEndsSession) {
     ragcli::chat::ChatCallbacks callbacks;
     callbacks.read_input = make_input_provider(inputs, &eof_reached);
     callbacks.prompt_user = []() {};
+    callbacks.on_assistant_chunk = [](const std::string &) {};
     callbacks.on_assistant_reply = [&replies](const std::string &content) {
         replies.push_back(content);
     };
@@ -91,6 +93,7 @@ TEST(ChatRunner, IgnoresEmptyInput) {
     ragcli::chat::ChatCallbacks callbacks;
     callbacks.read_input = make_input_provider(inputs);
     callbacks.prompt_user = []() {};
+    callbacks.on_assistant_chunk = [](const std::string &) {};
     callbacks.on_assistant_reply = [&replies](const std::string &content) {
         replies.push_back(content);
     };
@@ -118,6 +121,7 @@ TEST(ChatRunner, KeepsConversationHistory) {
     ragcli::chat::ChatCallbacks callbacks;
     callbacks.read_input = make_input_provider(inputs);
     callbacks.prompt_user = []() {};
+    callbacks.on_assistant_chunk = [](const std::string &) {};
     callbacks.on_assistant_reply = [](const std::string & /*content*/) {};
     callbacks.on_error = [](const std::string & /*message*/) {};
 
@@ -149,6 +153,7 @@ TEST(ChatRunner, ErrorRollsBackUserMessage) {
     ragcli::chat::ChatCallbacks callbacks;
     callbacks.read_input = make_input_provider(inputs);
     callbacks.prompt_user = []() {};
+    callbacks.on_assistant_chunk = [](const std::string &) {};
     callbacks.on_assistant_reply = [](const std::string & /*content*/) {};
     callbacks.on_error = [&errors](const std::string &message) { errors.push_back(message); };
 

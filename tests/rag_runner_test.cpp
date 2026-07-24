@@ -77,6 +77,74 @@ TEST(RagRunner, EmptyEmbeddingReturnsErrorForAdd) {
     EXPECT_TRUE(qdrant_port->last_upsert_content_.empty());
 }
 
+TEST(RagRunner, QueryRagAttachesRetrievedImageToVisionPrompt) {
+    auto llm_port = std::make_shared<MockLlmPort>();
+    auto qdrant_port = std::make_shared<MockQdrantPort>();
+    qdrant_port->search_results_ = {
+        ragcli::rag::SearchHit{"a relevant chunk", 0.9, /*is_image=*/true, "base64-image-data"}};
+
+    ragcli::rag::RagRunner runner(llm_port, qdrant_port);
+
+    ragcli::rag::RagTargets targets;
+    targets.model = "mock-model";
+    targets.embed_model = "mock-embed-model";
+
+    ragcli::rag::RagRunner::QueryInput input;
+    input.query = "what does the chart show?";
+    input.top_k = 1;
+
+    ragcli::test::CoutCapture cap;
+    const int exit_code = runner.query_rag(input, targets);
+    const std::string output = cap.str();
+
+    EXPECT_EQ(exit_code, 0);
+    // 이미지가 첨부된 hit 이 있으면 chat()(Vision) 경로를 타야 한다.
+    EXPECT_NE(output.find("mock vision answer"), std::string::npos);
+}
+
+TEST(RagRunner, QueryRagUsesTextOnlyPromptWhenNoImageHits) {
+    auto llm_port = std::make_shared<MockLlmPort>();
+    auto qdrant_port = std::make_shared<MockQdrantPort>();
+    qdrant_port->search_results_ = {
+        ragcli::rag::SearchHit{"a relevant chunk", 0.9, /*is_image=*/false, ""}};
+
+    ragcli::rag::RagRunner runner(llm_port, qdrant_port);
+
+    ragcli::rag::RagTargets targets;
+    targets.model = "mock-model";
+    targets.embed_model = "mock-embed-model";
+
+    ragcli::rag::RagRunner::QueryInput input;
+    input.query = "what is up?";
+    input.top_k = 1;
+
+    ragcli::test::CoutCapture cap;
+    const int exit_code = runner.query_rag(input, targets);
+    const std::string output = cap.str();
+
+    EXPECT_EQ(exit_code, 0);
+    // 이미지 hit 이 없으면 generate()(텍스트 전용) 경로를 타야 한다.
+    EXPECT_NE(output.find("mock answer"), std::string::npos);
+    EXPECT_EQ(output.find("mock vision answer"), std::string::npos);
+}
+
+TEST(RagRunner, ParseScoreThresholdAcceptsValidRange) {
+    EXPECT_DOUBLE_EQ(ragcli::rag::RagRunner::parse_score_threshold(""), 0.0);
+    EXPECT_DOUBLE_EQ(ragcli::rag::RagRunner::parse_score_threshold("0.0"), 0.0);
+    EXPECT_DOUBLE_EQ(ragcli::rag::RagRunner::parse_score_threshold("0.5"), 0.5);
+    EXPECT_DOUBLE_EQ(ragcli::rag::RagRunner::parse_score_threshold("1.0"), 1.0);
+}
+
+TEST(RagRunner, ParseScoreThresholdRejectsOutOfRangeValues) {
+    EXPECT_THROW(ragcli::rag::RagRunner::parse_score_threshold("1.5"), std::invalid_argument);
+    EXPECT_THROW(ragcli::rag::RagRunner::parse_score_threshold("-0.1"), std::invalid_argument);
+}
+
+TEST(RagRunner, ParseScoreThresholdRejectsNonNumericValues) {
+    EXPECT_THROW(ragcli::rag::RagRunner::parse_score_threshold("abc"), std::invalid_argument);
+    EXPECT_THROW(ragcli::rag::RagRunner::parse_score_threshold("0.5abc"), std::invalid_argument);
+}
+
 TEST(RagRunner, EmptyEmbeddingReturnsErrorForQuery) {
     auto llm_port = std::make_shared<MockLlmPort>();
     auto qdrant_port = std::make_shared<MockQdrantPort>();

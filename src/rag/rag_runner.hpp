@@ -11,6 +11,7 @@
 #include <wcppcli/wconf.hpp>
 #include <wcppcli/wlog.hpp>
 
+#include "llm/provider_config.hpp"
 #include "rag/llm_port.hpp"
 #include "rag/prompt_builder.hpp"
 #include "rag/qdrant_port.hpp"
@@ -25,6 +26,7 @@ struct RagCliOverrides {
     std::string embed_model;
     std::string qdrant_url;
     std::string collection;
+    std::string provider;
 };
 
 // RAG 지식 추가/질의 실행기.
@@ -50,11 +52,17 @@ class RagRunner {
     static auto resolve_targets(const RagCliOverrides &overrides, const wcppcli::WConf &conf)
         -> RagTargets {
         RagTargets targets;
-        targets.llm_url = pick_first(
-            {&overrides.llm_url, conf.get_string("OLLAMA_BASE_URL"), "http://localhost:11434"});
-        targets.model = pick_first({&overrides.model, conf.get_string("OLLAMA_MODEL"), "llama3"});
-        targets.embed_model = pick_first(
-            {&overrides.embed_model, conf.get_string("OLLAMA_EMBED_MODEL"), "nomic-embed-text"});
+
+        llm::ProviderOverrides provider_overrides{&overrides.provider, &overrides.llm_url,
+                                                   &overrides.model, &overrides.embed_model};
+        llm::ProviderTargets provider_targets = llm::resolve_provider_targets(provider_overrides, conf);
+        targets.provider = provider_targets.provider;
+        targets.llm_url = provider_targets.base_url;
+        targets.model = provider_targets.model;
+        targets.embed_model = provider_targets.embed_model;
+        targets.api_key = provider_targets.api_key;
+        targets.api_version = provider_targets.api_version;
+
         targets.qdrant_url = pick_first(
             {&overrides.qdrant_url, conf.get_string("QDRANT_BASE_URL"), "http://localhost:6333"});
         targets.collection =
@@ -156,7 +164,6 @@ class RagRunner {
             llm_client::RequestParams gen_params;
             gen_params.model = targets.model;
 
-            llm_client::ResponseData response;
             std::vector<llm_client::ContentBlock> blocks;
             blocks.push_back(llm_client::ContentBlock::makeText(prompt));
 
@@ -167,14 +174,27 @@ class RagRunner {
                 }
             }
 
+            // 답변을 토큰 단위로 즉시 화면에 출력한다.
+            std::cout << "\n[Answer]\n";
+            bool any_chunk_streamed = false;
+            llm_client::StreamCallback print_chunk = [&any_chunk_streamed](const std::string &chunk) {
+                any_chunk_streamed = true;
+                std::cout << chunk << std::flush;
+            };
+
+            llm_client::ResponseData response;
             if (blocks.size() > 1) {
                 llm_client::Message msg("user", blocks);
-                response = llm_port_->chat({msg}, gen_params);
+                response = llm_port_->chat_stream({msg}, print_chunk, gen_params);
             } else {
-                response = llm_port_->generate(prompt, gen_params);
+                response = llm_port_->generate_stream(prompt, print_chunk, gen_params);
             }
-
-            std::cout << "\n[Answer]\n" << response.content << std::endl;
+            // 프로바이더가 실제로는 스트리밍하지 않고 콜백을 한 번도 호출하지
+            // 않은 채 최종 응답만 반환하는 경우를 대비한 폴백.
+            if (!any_chunk_streamed) {
+                std::cout << response.content;
+            }
+            std::cout << std::endl;
 
         } catch (const std::exception &e) {
             wcppcli::WLog::error("RAG failed: " + std::string(e.what()));

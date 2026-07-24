@@ -1,3 +1,4 @@
+#include <array>
 #include <fstream>
 #include <memory>
 #include <string>
@@ -19,6 +20,21 @@
 using ragcli::test::MockDocumentSource;
 using ragcli::test::MockEmbeddingProvider;
 using ragcli::test::MockQdrantPort;
+
+namespace {
+constexpr std::size_t k_long_text_length = 1000;
+constexpr ragcli::chunking::ChunkSize k_test_chunk_size{256};
+constexpr ragcli::chunking::Overlap k_test_overlap{32};
+
+constexpr int k_ppm_width = 2;
+constexpr int k_ppm_height = 2;
+constexpr int k_ppm_channels = 3;
+constexpr int k_ppm_max_value = 255;
+constexpr std::size_t k_ppm_pixel_bytes =
+    static_cast<std::size_t>(k_ppm_width) *
+    static_cast<std::size_t>(k_ppm_height) *
+    static_cast<std::size_t>(k_ppm_channels);
+} // namespace
 
 TEST(Indexer, IndexesTextChunksToQdrant) {
     std::vector<ragcli::document::ExtractedPage> pages;
@@ -90,12 +106,13 @@ TEST(Indexer, EmptyEmbeddingReturnsError) {
 
 TEST(Indexer, SimpleChunkerSplitsLongText) {
     std::vector<ragcli::document::ExtractedPage> pages;
-    pages.push_back({std::string(1000, 'a'), "long.txt", 0, {}, 0, 0});
+    pages.push_back({std::string(k_long_text_length, 'a'), "long.txt", 0, {}, 0, 0});
 
     auto source = std::make_shared<MockDocumentSource>(pages, "long.txt");
     auto embed_provider = std::make_shared<MockEmbeddingProvider>();
     auto qdrant_port = std::make_shared<MockQdrantPort>();
-    auto chunker = std::make_shared<ragcli::chunking::SimpleChunker>(256, 32);
+    auto chunker = std::make_shared<ragcli::chunking::SimpleChunker>(k_test_chunk_size,
+                                                                    k_test_overlap);
 
     ragcli::indexing::Indexer indexer(embed_provider, qdrant_port, chunker);
 
@@ -113,12 +130,13 @@ TEST(ImageFileSource, DecodesPpmImage) {
     {
         std::ofstream ppm(ppm_path, std::ios::binary);
         // 2x2 RGB 이미지 (P6 binary PPM)
-        ppm << "P6\n2 2\n255\n";
-        const unsigned char pixels[] = {255, 0,   0,    // red
-                                        0,   255, 0,    // green
-                                        0,   0,   255,  // blue
-                                        255, 255, 255}; // white
-        ppm.write(reinterpret_cast<const char *>(pixels), sizeof(pixels));
+        ppm << "P6\n" << k_ppm_width << ' ' << k_ppm_height << "\n" << k_ppm_max_value
+            << "\n";
+        std::array<unsigned char, k_ppm_pixel_bytes> pixels = {k_ppm_max_value, 0,               0, // red
+                                                              0,               k_ppm_max_value, 0, // green
+                                                              0,               0,               k_ppm_max_value, // blue
+                                                              k_ppm_max_value, k_ppm_max_value, k_ppm_max_value}; // white
+        ppm.write(reinterpret_cast<const char *>(pixels.data()), pixels.size());
     }
 
     auto source = std::make_shared<ragcli::document::ImageFileSource>(ppm_path);
@@ -147,6 +165,39 @@ TEST(MarkdownChunker, SplitsByHeadings) {
     ASSERT_EQ(chunks.size(), 2U);
     EXPECT_EQ(chunks[0].title, "Section 1");
     EXPECT_EQ(chunks[1].title, "Section 2");
+}
+
+TEST(NoChunker, PassesThroughOnePageToOneChunkWithImageData) {
+    std::vector<ragcli::document::ExtractedPage> pages;
+    ragcli::document::ExtractedPage text_page;
+    text_page.text = "plain text page";
+    text_page.title = "note.txt";
+    pages.push_back(text_page);
+
+    ragcli::document::ExtractedPage image_page;
+    image_page.title = "photo";
+    image_page.is_image = true;
+    image_page.image_width = 2;
+    image_page.image_height = 2;
+    image_page.image = {1, 2, 3, 4};
+    pages.push_back(image_page);
+
+    ragcli::chunking::NoChunker chunker;
+    auto chunks = chunker.chunk(pages, "source.txt");
+
+    ASSERT_EQ(chunks.size(), 2U);
+
+    EXPECT_EQ(chunks[0].text, "plain text page");
+    EXPECT_EQ(chunks[0].title, "note.txt");
+    EXPECT_EQ(chunks[0].source, "source.txt");
+    EXPECT_EQ(chunks[0].chunk_index, 0);
+    EXPECT_FALSE(chunks[0].is_image);
+
+    EXPECT_TRUE(chunks[1].is_image);
+    EXPECT_EQ(chunks[1].chunk_index, 1);
+    EXPECT_EQ(chunks[1].image_width, 2);
+    EXPECT_EQ(chunks[1].image_height, 2);
+    EXPECT_FALSE(chunks[1].image_base64.empty()); // 원본 이미지가 있으면 base64 로 인코딩되어야 함
 }
 
 TEST(Base64, EncodesBinaryData) {

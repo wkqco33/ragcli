@@ -1,12 +1,13 @@
 # ragcli
 
-Qdrant 벡터 데이터베이스와 Ollama LLM을 연동하여 지식 검색, 문서 인덱싱, 멀티모달(이미지/PDF) 처리 및 생성형 답변(RAG)을 수행하는 C++17 기반 CLI 도구입니다.
+Qdrant 벡터 데이터베이스와 LLM(Ollama, OpenAI, Azure OpenAI)을 연동하여 지식 검색, 문서 인덱싱, 멀티모달(이미지/PDF) 처리 및 생성형 답변(RAG)을 수행하는 C++17 기반 CLI 도구입니다.
 
 ---
 
 ## 주요 기능
 
-- **RAG (Retrieval-Augmented Generation)**: Qdrant에 저장된 지식을 임베딩 벡터 검색으로 추출하고 Ollama LLM을 통해 답변을 생성합니다.
+- **RAG (Retrieval-Augmented Generation)**: Qdrant에 저장된 지식을 임베딩 벡터 검색으로 추출하고 LLM을 통해 답변을 생성합니다.
+- **멀티 프로바이더 LLM 지원**: Ollama(로컬), OpenAI, Azure OpenAI 중 선택하여 `rag`/`chat`에 사용할 수 있습니다 (`--provider` 또는 `LLM_PROVIDER`).
 - **다양한 문서 및 멀티모달 인덱싱**:
   - **텍스트/파일/PDF**: PDF 페이지별 텍스트 및 모든 이미지 자동 추출 및 저장.
   - **이미지 인덱싱**: PNG, JPG, JPEG, BMP 이미지 디코딩, 메타데이터 추출 및 Base64 인코딩 후 Qdrant Payload 저장.
@@ -14,7 +15,8 @@ Qdrant 벡터 데이터베이스와 Ollama LLM을 연동하여 지식 검색, �
 - **다양한 청킹(Chunking) 전략**:
   - **Simple Chunker**: 고정 크기 + 오버랩 텍스트 청킹.
   - **Markdown Chunker**: 마크다운 헤딩(`#`, `##`, `###` 등) 기반의 구조적 섹션 청킹.
-- **인터랙티브 대화 (Chat)**: Ollama 서버와 연동하여 CLI 터미널 환경에서 연속 대화를 수행합니다.
+- **인터랙티브 대화 (Chat)**: LLM 서버와 연동하여 CLI 터미널 환경에서 연속 대화를 수행합니다.
+- **스트리밍 응답**: `chat`과 `rag -q` 모두 답변을 토큰 단위로 즉시 화면에 출력해 응답을 기다리는 체감 시간을 줄입니다.
 - **견고한 에러 핸들링 & 최상위 예외 관리**: 글로벌 Exception Handler, CPR 네트워크 및 JSON 파싱 유효성 검증 강화.
 - **환경 설정 우선순위**: CLI 플래그 > 환경 변수 (`.env`) > 코드 기본값 순서로 설정을 유연하게 적용합니다.
 
@@ -36,11 +38,15 @@ Qdrant 벡터 검색 기반 질의응답 및 지식 데이터/문서/이미지 �
 | `--dir` | (없음) | Qdrant에 재귀적으로 인덱싱할 디렉터리 경로 | (없음) |
 | `--image` | (없음) | Qdrant에 인덱싱할 이미지 파일 경로 (`.png`, `.jpg`, `.bmp` 등) | (없음) |
 | `--chunker` | (없음) | 청킹 전략 (`simple` 또는 `markdown`) | `simple` |
+| `--chunk-size` | (없음) | Simple Chunker 청크 크기 (문자 수) | `512` |
+| `--chunk-overlap` | (없음) | Simple Chunker 청크 간 오버랩 (문자 수) | `64` |
+| `--distance` | (없음) | Qdrant 거리 함수 (`Cosine`, `Euclid`, `Dot`, `Manhattan`) | `Cosine` |
 | `--top-k` | `-k` | 검색할 상위 텍스트 청크 개수 | `3` |
 | `--score-threshold` | (없음) | Qdrant 검색 최소 점수 임계값 (`0.0` ~ `1.0`) | `0.0` (비활성화) |
-| `--model` | `-m` | 사용 LLM 모델명 | `llama3` |
-| `--embed-model` | `-e` | 임베딩 모델명 | `nomic-embed-text` |
-| `--llm-url` | (없음) | Ollama LLM 서버 URL | `http://localhost:11434` |
+| `--provider` | (없음) | LLM 프로바이더 (`ollama`, `openai`, `azure`) | `ollama` |
+| `--model` | `-m` | 사용 LLM 모델명 | 프로바이더별 기본값 |
+| `--embed-model` | `-e` | 임베딩 모델명 | 프로바이더별 기본값 |
+| `--llm-url` | (없음) | LLM 서버 URL | 프로바이더별 기본값 |
 | `--qdrant-url` | (없음) | Qdrant 서버 URL | `http://localhost:6333` |
 | `--collection` | `-c` | Qdrant 컬렉션명 | `documents` |
 
@@ -62,8 +68,11 @@ ragcli rag --dir ./knowledge_base/ --chunker markdown
 # 5) 단일 이미지 인덱싱
 ragcli rag --image ./charts/diagram.png
 
-# 6) 질문 및 RAG 답변 생성
+# 6) 질문 및 RAG 답변 생성 (로컬 Ollama)
 ragcli rag -q "삼성전자 주가가 얼마인가요?" -k 5
+
+# 7) OpenAI를 프로바이더로 사용해 질의 (OPENAI_API_KEY는 .env 또는 환경 변수로 설정)
+ragcli rag -q "삼성전자 주가가 얼마인가요?" --provider openai --model gpt-4o-mini
 ```
 
 ---
@@ -97,17 +106,22 @@ ragcli collection -d -c test_collection
 
 ### 3. `chat` (대화 세션)
 
-Ollama LLM 모델과 터미널에서 실시간 인터랙티브 대화를 수행합니다.
+LLM 모델과 터미널에서 실시간 인터랙티브 대화를 수행합니다.
 
 | 플래그 | 단축키 | 설명 | 기본값 |
 | :--- | :--- | :--- | :--- |
-| `--model` | `-m` | 대화에 사용할 Ollama 모델명 | `llama3` |
-| `--url` | `-u` | Ollama 서버 URL | `http://localhost:11434` |
+| `--provider` | (없음) | LLM 프로바이더 (`ollama`, `openai`, `azure`) | `ollama` |
+| `--model` | `-m` | 대화에 사용할 LLM 모델명 | 프로바이더별 기본값 |
+| `--url` | `-u` | LLM 서버 URL | 프로바이더별 기본값 |
 
 #### 사용 예시
 
 ```bash
+# 로컬 Ollama
 ragcli chat -m llama3 -u http://localhost:11434
+
+# OpenAI (OPENAI_API_KEY는 .env 또는 환경 변수로 설정)
+ragcli chat --provider openai -m gpt-4o-mini
 ```
 
 ---
@@ -155,12 +169,31 @@ ctest --test-dir build/debug -R "^(RegisterCommands|GreetCommand|RagCommand|RagR
 
 ## 환경 변수 설정 (`.env`)
 
-프로젝트 루트 디렉터리에 `.env` 파일을 작성하여 기본 URL 및 모델 정보를 설정할 수 있습니다.
+프로젝트 루트 디렉터리에 `.env` 파일을 작성하여 기본 URL 및 모델 정보를 설정할 수 있습니다. 예시는
+`.env.example`을 참고하세요.
 
 ```env
+# LLM_PROVIDER: ollama(기본값) | openai | azure
+LLM_PROVIDER=ollama
+
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=llama3
 OLLAMA_EMBED_MODEL=nomic-embed-text
+
+# LLM_PROVIDER=openai 일 때 사용
+OPENAI_API_KEY=your_openai_api_key_here
+
+# LLM_PROVIDER=azure 일 때 사용
+AZURE_OPENAI_API_KEY=your_azure_openai_api_key_here
+AZURE_OPENAI_BASE_URL=https://your-resource-name.openai.azure.com/
+AZURE_OPENAI_MODEL=your-chat-deployment-name
+AZURE_OPENAI_EMBED_MODEL=your-embedding-deployment-name
+
 QDRANT_BASE_URL=http://localhost:6333
 QDRANT_COLLECTION=documents
+# QDRANT_DISTANCE=Cosine   # Cosine(기본값) | Euclid | Dot | Manhattan
+
+# Simple Chunker 튜닝 (문자 수 기준)
+# CHUNK_SIZE=512
+# CHUNK_OVERLAP=64
 ```

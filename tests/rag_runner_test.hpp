@@ -39,6 +39,26 @@ class MockLlmPort : public rag::LlmPort {
         return response;
     }
 
+    auto generate_stream(const std::string &prompt, llm_client::StreamCallback callback,
+                         const llm_client::RequestParams &params) const
+        -> llm_client::ResponseData override {
+        auto response = generate(prompt, params);
+        if (callback) {
+            callback(response.content);
+        }
+        return response;
+    }
+
+    auto chat_stream(const std::vector<llm_client::Message> &messages,
+                     llm_client::StreamCallback callback, const llm_client::RequestParams &params) const
+        -> llm_client::ResponseData override {
+        auto response = chat(messages, params);
+        if (callback) {
+            callback(response.content);
+        }
+        return response;
+    }
+
     void set_embeddings_returned(bool returned) {
         embeddings_returned_ = returned;
     }

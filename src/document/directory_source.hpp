@@ -51,7 +51,11 @@ class DirectorySource : public DocumentSource {
                 source = std::make_shared<TextFileSource>(entry.path().string());
             } else if (ext == ".pdf") {
                 source = std::make_shared<PdfFileSource>(entry.path().string());
-            } else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp") {
+            } else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".gif" ||
+                      ext == ".webp" || ext == ".bmp") {
+                // 확장자 목록은 document_source_factory.hpp 의 단일 파일(--image) 목록과
+                // 동일하게 유지한다. stb_image 가 실제로 디코딩할 수 없는 형식(.webp 등)은
+                // 아래 catch 블록의 결함 허용 로직이 경고 로그와 함께 건너뛴다.
                 source = std::make_shared<ImageFileSource>(entry.path().string());
             } else {
                 continue;

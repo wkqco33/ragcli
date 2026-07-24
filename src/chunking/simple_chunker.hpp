@@ -12,10 +12,23 @@
 namespace ragcli::chunking {
 
 // 고정 길이 + 오버랩 기반 텍스트 청커.
+inline constexpr std::size_t k_default_chunk_size = 512;
+inline constexpr std::size_t k_default_overlap = 64;
+
+// 생성자 인자가 모두 std::size_t라서 순서를 바꿔 전달하기 쉬운 실수를 막기 위해
+// chunk size 와 overlap 각각을 강력한 타입으로 구분한다.
+struct ChunkSize {
+    std::size_t value;
+};
+struct Overlap {
+    std::size_t value;
+};
+
 class SimpleChunker : public Chunker {
   public:
-    explicit SimpleChunker(std::size_t chunk_size = 512, std::size_t overlap = 64)
-        : chunk_size_(chunk_size), overlap_(overlap) {
+    explicit SimpleChunker(ChunkSize chunk_size = ChunkSize{k_default_chunk_size},
+                           Overlap overlap = Overlap{k_default_overlap})
+        : chunk_size_(chunk_size.value), overlap_(overlap.value) {
         if (overlap_ >= chunk_size_) {
             overlap_ = chunk_size_ / 2;
         }

@@ -22,10 +22,15 @@ class ChatCommand : public CommandBase {
     void register_to(wcppcli::Command &root) override {
         auto cmd = std::make_unique<wcppcli::Command>();
         cmd->name = "chat";
-        cmd->description = "Start an interactive chat session using Ollama LLM";
+        cmd->description = "Start an interactive chat session using an LLM provider";
 
-        add_string_flag(*cmd, "model", 'm', "Ollama model name (default: llama3)", &model_);
-        add_string_flag(*cmd, "url", 'u', "Ollama base URL (default: http://localhost:11434)",
+        add_string_flag(*cmd, "provider", 0,
+                        "LLM provider: 'ollama' (default), 'openai', or 'azure'", &provider_);
+        add_string_flag(*cmd, "model", 'm', "LLM model name (default depends on --provider)",
+                        &model_);
+        add_string_flag(*cmd, "url", 'u',
+                        "LLM base URL (default depends on --provider, e.g. "
+                        "http://localhost:11434 for ollama)",
                         &base_url_);
 
         cmd->handler = [this](const wcppcli::Command & /*unused*/) { return run_chat(); };
@@ -39,14 +44,14 @@ class ChatCommand : public CommandBase {
         conf.read_file(".env");
 
         const ragcli::chat::ChatTargets targets =
-            ragcli::chat::resolve_chat_targets(&base_url_, &model_, conf);
+            ragcli::chat::resolve_chat_targets(&base_url_, &model_, &provider_, conf);
 
-        wcppcli::WLog::info("Starting Ollama Chat Session");
+        wcppcli::WLog::info("Starting " + targets.provider + " Chat Session");
         wcppcli::WLog::info("URL: " + targets.url + " | Model: " + targets.model);
         wcppcli::WLog::info("Type 'exit' or 'quit' to end chat.");
 
-        auto llm_client =
-            llm_client::LLMClientFactory::create("ollama", /*api_key=*/"", targets.url);
+        auto llm_client = llm_client::LLMClientFactory::create(targets.provider, targets.api_key,
+                                                                targets.url, targets.api_version);
         ragcli::chat::ChatRunner runner(std::move(llm_client));
 
         return runner.run(targets, {});
@@ -54,6 +59,7 @@ class ChatCommand : public CommandBase {
 
     std::string model_;
     std::string base_url_;
+    std::string provider_;
 };
 
 } // namespace ragcli::cmd

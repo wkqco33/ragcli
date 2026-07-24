@@ -8,6 +8,10 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [debug, release]
     steps:
       - uses: actions/checkout@v4
 
@@ -22,11 +26,39 @@ jobs:
           "$HOME/vcpkg/bootstrap-vcpkg.sh"
           echo "VCPKG_ROOT=$HOME/vcpkg" >> "$GITHUB_ENV"
 
+      - name: Configure (${{ matrix.preset }})
+        run: cmake --preset ${{ matrix.preset }}
+
+      - name: Build (${{ matrix.preset }})
+        run: cmake --build --preset ${{ matrix.preset }}
+
+      - name: Test (${{ matrix.preset }})
+        run: ctest --preset ${{ matrix.preset }} --output-on-failure
+
+  clang-tidy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential autoconf autoconf-archive automake libtool pkg-config ninja-build cmake clang-tidy
+
+      - name: Bootstrap vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
+          "$HOME/vcpkg/bootstrap-vcpkg.sh"
+          echo "VCPKG_ROOT=$HOME/vcpkg" >> "$GITHUB_ENV"
+
       - name: Configure
         run: cmake --preset debug
 
-      - name: Build
-        run: cmake --build --preset debug
-
-      - name: Test
-        run: ctest --preset debug --output-on-failure
+      # clang-tidy 결과는 참고용으로만 출력한다 (기존에 쌓인 스타일 경고가
+      # 많아 이를 hard failure 로 만들면 무관한 PR까지 막히게 된다). 실제
+      # 에러(컴파일 실패 등) 여부는 위 build-and-test 잡이 이미 검증한다.
+      - name: Run clang-tidy (report only)
+        continue-on-error: true
+        run: |
+          mapfile -t files < <(find src tests -type f \( -name '*.cpp' -o -name '*.hpp' \))
+          clang-tidy -p build/debug "${files[@]}"

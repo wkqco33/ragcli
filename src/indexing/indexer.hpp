@@ -14,7 +14,6 @@
 #include "document/document_source.hpp"
 #include "embedding/embedding_provider.hpp"
 #include "indexing/index_options.hpp"
-#include "qdrant/qdrant_client.hpp"
 #include "rag/qdrant_port.hpp"
 
 namespace ragcli::indexing {
@@ -59,7 +58,7 @@ class Indexer {
             }
 
             for (std::size_t i = 0; i < chunks.size(); ++i) {
-                qdrant::QdrantClient::PointData data;
+                rag::UpsertPoint data;
                 data.content = chunks[i].text;
                 data.title = build_title(chunks[i]);
                 data.source = chunks[i].source;

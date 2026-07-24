@@ -32,11 +32,16 @@ FetchContent_MakeAvailable(llm_client)
 include(FetchContent)
 FetchContent_Declare(
   cpppdf
-  SOURCE_DIR /home/seoyc/Workspace/utils/cpppdf
+  GIT_REPOSITORY https://github.com/wkqco33/cpppdf.git
+  GIT_TAG        7e049d7d36026f846ea60a1765ee2734deaefa68
 )
 set(CPPPDF_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(CPPPDF_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+# cpppdf's own test suite resolves include paths off CMAKE_SOURCE_DIR, which
+# points at ragcli's source tree (not cpppdf's) when pulled in via
+# FetchContent, so keep BUILD_TESTING off for this fetch.
+set(BUILD_TESTING OFF)
 FetchContent_MakeAvailable(cpppdf)
+unset(BUILD_TESTING) # restore visibility of the cached BUILD_TESTING value
 
 set(BUILD_TESTING ON CACHE BOOL "" FORCE)
 

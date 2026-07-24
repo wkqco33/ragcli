@@ -25,7 +25,8 @@ class QdrantClient {
         cpr::Response response = cpr::Get(cpr::Url{url});
 
         verify_response(response, "Qdrant get collection info failed");
-        return parse_json_safely(response.text, "Qdrant collection info");
+        return parse_json_safely(JsonText{response.text},
+                               JsonContext{"Qdrant collection info"});
     }
 
     // 모든 컬렉션 목록을 조회한다.
@@ -34,7 +35,8 @@ class QdrantClient {
         cpr::Response response = cpr::Get(cpr::Url{url});
 
         verify_response(response, "Qdrant list collections failed");
-        return parse_json_safely(response.text, "Qdrant collections list");
+        return parse_json_safely(JsonText{response.text},
+                               JsonContext{"Qdrant collections list"});
     }
 
     // 컬렉션을 삭제한다.
@@ -81,7 +83,8 @@ class QdrantClient {
         json req = build_search_request(query_vec, {limit, score_threshold, vector_name});
 
         cpr::Response response = execute_search_request(url, req.dump());
-        return parse_search_response(parse_json_safely(response.text, "Qdrant search response"));
+        return parse_search_response(
+            parse_json_safely(JsonText{response.text}, JsonContext{"Qdrant search response"}));
     }
 
     struct PointData {
@@ -156,14 +159,23 @@ class QdrantClient {
         }
     }
 
-    static auto parse_json_safely(const std::string &text, const std::string &context) -> json {
-        if (text.empty()) {
-            throw std::runtime_error(context + " returned an empty response.");
+    // JSON 문자열과 컨텍스트를 구분해 파싱 실수를 방지한다.
+    struct JsonText {
+        const std::string &value;
+    };
+    struct JsonContext {
+        const std::string &value;
+    };
+
+    static auto parse_json_safely(const JsonText &text, const JsonContext &context) -> json {
+        if (text.value.empty()) {
+            throw std::runtime_error(context.value + " returned an empty response.");
         }
         try {
-            return json::parse(text);
+            return json::parse(text.value);
         } catch (const json::parse_error &e) {
-            throw std::runtime_error(context + " invalid JSON format: " + std::string(e.what()));
+            throw std::runtime_error(context.value + " invalid JSON format: " +
+                                     std::string(e.what()));
         }
     }
 

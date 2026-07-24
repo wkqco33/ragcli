@@ -19,6 +19,7 @@ TEST(RagCommand, HasExpectedFlags) {
     bool found_add = false;
     bool found_title = false;
     bool found_file = false;
+    bool found_provider = false;
 
     for (const auto &flag : rag.flags) {
         if (flag.name == "query" && flag.shorthand == 'q') {
@@ -33,12 +34,16 @@ TEST(RagCommand, HasExpectedFlags) {
         if (flag.name == "file" && flag.shorthand == 'f') {
             found_file = true;
         }
+        if (flag.name == "provider") {
+            found_provider = true;
+        }
     }
 
     EXPECT_TRUE(found_query);
     EXPECT_TRUE(found_add);
     EXPECT_TRUE(found_title);
     EXPECT_TRUE(found_file);
+    EXPECT_TRUE(found_provider);
 }
 
 TEST(RagCommand, MissingQueryOrAddReturnsError) {

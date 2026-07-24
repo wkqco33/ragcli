@@ -12,8 +12,7 @@ namespace ragcli::test {
 class MockQdrantPort : public rag::QdrantPort {
   public:
     auto search(const std::vector<float> & /*query_vec*/, int limit, double /*score_threshold*/,
-                const std::string & /*vector_name*/) const
-        -> std::vector<qdrant::QdrantClient::SearchResultItem> override {
+                const std::string & /*vector_name*/) const -> std::vector<rag::SearchHit> override {
         (void)limit;
         return search_results_;
     }
@@ -23,8 +22,8 @@ class MockQdrantPort : public rag::QdrantPort {
         collection_created_ = true;
     }
 
-    auto upsert_point(const std::vector<float> & /*embedding*/,
-                      const qdrant::QdrantClient::PointData &data) const -> void override {
+    auto upsert_point(const std::vector<float> & /*embedding*/, const rag::UpsertPoint &data) const
+        -> void override {
         last_upsert_content_ = data.content;
         last_upsert_title_ = data.title;
         last_data_.push_back(data);
@@ -32,8 +31,8 @@ class MockQdrantPort : public rag::QdrantPort {
 
     mutable std::string last_upsert_content_;
     mutable std::string last_upsert_title_;
-    mutable std::vector<qdrant::QdrantClient::PointData> last_data_;
-    mutable std::vector<qdrant::QdrantClient::SearchResultItem> search_results_;
+    mutable std::vector<rag::UpsertPoint> last_data_;
+    mutable std::vector<rag::SearchHit> search_results_;
     mutable bool collection_created_ = false;
 };
 

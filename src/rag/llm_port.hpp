@@ -12,15 +12,27 @@ class LlmPort {
   public:
     virtual ~LlmPort() = default;
 
-    virtual auto embed(const std::vector<std::string> &inputs,
+    [[nodiscard]] virtual auto embed(const std::vector<std::string> &inputs,
                        const llm_client::EmbeddingParams &params) const
         -> llm_client::EmbeddingResponse = 0;
 
-    virtual auto generate(const std::string &prompt, const llm_client::RequestParams &params) const
+    [[nodiscard]] virtual auto generate(const std::string &prompt, const llm_client::RequestParams &params) const
         -> llm_client::ResponseData = 0;
 
-    virtual auto chat(const std::vector<llm_client::Message> &messages,
+    [[nodiscard]] virtual auto chat(const std::vector<llm_client::Message> &messages,
                       const llm_client::RequestParams &params) const
+        -> llm_client::ResponseData = 0;
+
+    // chunk 콜백을 통해 응답을 스트리밍으로 받는다. 반환값은 generate()/chat() 와
+    // 동일하게 최종 누적 응답을 담는다.
+    [[nodiscard]] virtual auto generate_stream(const std::string &prompt,
+                                               llm_client::StreamCallback callback,
+                                               const llm_client::RequestParams &params) const
+        -> llm_client::ResponseData = 0;
+
+    [[nodiscard]] virtual auto chat_stream(const std::vector<llm_client::Message> &messages,
+                                           llm_client::StreamCallback callback,
+                                           const llm_client::RequestParams &params) const
         -> llm_client::ResponseData = 0;
 };
 
@@ -45,6 +57,19 @@ class LlmClientAdapter : public LlmPort {
               const llm_client::RequestParams &params) const
         -> llm_client::ResponseData override {
         return client_->chat(messages, params);
+    }
+
+    auto generate_stream(const std::string &prompt, llm_client::StreamCallback callback,
+                         const llm_client::RequestParams &params) const
+        -> llm_client::ResponseData override {
+        return client_->generateStream(prompt, std::move(callback), params);
+    }
+
+    auto chat_stream(const std::vector<llm_client::Message> &messages,
+                     llm_client::StreamCallback callback,
+                     const llm_client::RequestParams &params) const
+        -> llm_client::ResponseData override {
+        return client_->chatStream(messages, std::move(callback), params);
     }
 
   private:

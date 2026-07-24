@@ -14,6 +14,7 @@ TEST(ChatCommand, HasExpectedFlags) {
 
     bool found_model = false;
     bool found_url = false;
+    bool found_provider = false;
     for (const auto &flag : chat.flags) {
         if (flag.name == "model" && flag.shorthand == 'm') {
             found_model = true;
@@ -21,7 +22,11 @@ TEST(ChatCommand, HasExpectedFlags) {
         if (flag.name == "url" && flag.shorthand == 'u') {
             found_url = true;
         }
+        if (flag.name == "provider") {
+            found_provider = true;
+        }
     }
     EXPECT_TRUE(found_model);
     EXPECT_TRUE(found_url);
+    EXPECT_TRUE(found_provider);
 }
