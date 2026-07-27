@@ -46,6 +46,7 @@ jobs:
         run: |
           brew update
           brew install automake libtool pkg-config ninja cmake
+          git config --global credential.helper ""
 
       - name: Install build tools (Windows)
         if: runner.os == 'Windows'
