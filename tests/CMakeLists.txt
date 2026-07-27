@@ -9,7 +9,8 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable(ragcli_tests
   registry_test.cpp
-  greet_test.cpp
+  pdf_summarize_test.cpp
+  ocr_test.cpp
   rag_test.cpp
   chat_test.cpp
   rag_runner_test.cpp

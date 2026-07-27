@@ -7,7 +7,8 @@
 #include "chat.hpp"
 #include "collection.hpp"
 #include "command.hpp"
-#include "greet.hpp"
+#include "ocr.hpp"
+#include "pdf_summarize.hpp"
 #include "rag.hpp"
 
 namespace ragcli::cmd {
@@ -18,10 +19,11 @@ namespace ragcli::cmd {
 // 새 커맨드 추가 시 holders.emplace_back(make_unique<...>()) 한 줄 추가.
 inline auto register_commands(wcppcli::Command &root) -> std::vector<std::unique_ptr<CommandBase>> {
     std::vector<std::unique_ptr<CommandBase>> holders;
-    holders.emplace_back(std::make_unique<GreetCommand>());
     holders.emplace_back(std::make_unique<ChatCommand>());
     holders.emplace_back(std::make_unique<RagCommand>());
     holders.emplace_back(std::make_unique<CollectionCommand>());
+    holders.emplace_back(std::make_unique<PdfSummarizeCommand>());
+    holders.emplace_back(std::make_unique<OcrCommand>());
 
     for (auto &cmd : holders) {
         cmd->register_to(root);

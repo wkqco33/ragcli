@@ -1,0 +1,50 @@
+--- a/src/ollama_client.cpp	2026-07-27 18:38:33.055114088 +0900
++++ b/src/ollama_client.cpp	2026-07-27 18:38:33.066130743 +0900
+@@ -10,13 +10,46 @@
+ 
+ namespace {
+ 
++// Ollama 는 OpenAI 식 content array 가 아닌 자체 포맷을 사용한다:
++//   - content: 평문 문자열 (모든 텍스트 블록을 이어붙임)
++//   - images: base64 문자열 배열 (data URL 접두사 없이)
++// 이 함수는 Message::blocks 에서 텍스트와 이미지를 분리해 Ollama 포맷으로
++// 조립한다. blocks 가 비어 있으면 content 필드만 사용한다.
++json build_ollama_messages(const std::vector<Message> &messages) {
++  json arr = json::array();
++  for (const auto &msg : messages) {
++    if (msg.blocks.empty()) {
++      arr.push_back({{"role", msg.role}, {"content", msg.content}});
++      continue;
++    }
++
++    std::string text_content;
++    json images = json::array();
++    for (const auto &block : msg.blocks) {
++      if (block.type == ContentType::Text) {
++        text_content += block.text;
++      } else if (block.type == ContentType::ImageBase64) {
++        images.push_back(block.base64_data);
++      } else if (block.type == ContentType::ImageUrl) {
++        images.push_back(block.image_url);
++      }
++    }
++    json m = {{"role", msg.role}, {"content", text_content}};
++    if (!images.empty()) {
++      m["images"] = images;
++    }
++    arr.push_back(std::move(m));
++  }
++  return arr;
++}
++
+ json buildRequestBody(const std::vector<Message> &messages,
+                       const RequestParams &params, const std::string &model,
+                       bool streaming) {
+   json j_req;
+   j_req["model"] = model;
+   j_req["stream"] = streaming;
+-  j_req["messages"] = detail::build_role_content_messages(messages);
++  j_req["messages"] = build_ollama_messages(messages);
+ 
+   json options;
+   detail::set_if_present(options, "temperature", params.temperature);

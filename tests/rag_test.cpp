@@ -11,8 +11,8 @@ TEST(RagCommand, HasExpectedFlags) {
     wcppcli::Command root;
     auto holders = ragcli::cmd::register_commands(root);
 
-    ASSERT_GE(root.subcommands.size(), 3U);
-    const auto &rag = *root.subcommands[2];
+    ASSERT_GE(root.subcommands.size(), 4U);
+    const auto &rag = *root.subcommands[1];
     EXPECT_EQ(rag.name, "rag");
 
     bool found_query = false;

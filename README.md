@@ -16,6 +16,8 @@ Qdrant 벡터 데이터베이스와 LLM(Ollama, OpenAI, Azure OpenAI)을 연동�
   - **Simple Chunker**: 고정 크기 + 오버랩 텍스트 청킹.
   - **Markdown Chunker**: 마크다운 헤딩(`#`, `##`, `###` 등) 기반의 구조적 섹션 청킹.
 - **인터랙티브 대화 (Chat)**: LLM 서버와 연동하여 CLI 터미널 환경에서 연속 대화를 수행합니다.
+- **PDF 요약 (pdf)**: PDF 파일의 텍스트를 추출하여 LLM으로 핵심 내용을 요약 정리합니다. Qdrant 없이 단독으로 동작합니다.
+- **이미지 OCR + 요약 (ocr)**: 영수증, 문서 스캔 등 이미지의 텍스트를 Vision LLM으로 추출(OCR)하고 핵심 내용을 요약 정리합니다. Qdrant 없이 단독으로 동작합니다.
 - **스트리밍 응답**: `chat`과 `rag -q` 모두 답변을 토큰 단위로 즉시 화면에 출력해 응답을 기다리는 체감 시간을 줄입니다.
 - **견고한 에러 핸들링 & 최상위 예외 관리**: 글로벌 Exception Handler, CPR 네트워크 및 JSON 파싱 유효성 검증 강화.
 - **환경 설정 우선순위**: CLI 플래그 > 환경 변수 (`.env`) > 코드 기본값 순서로 설정을 유연하게 적용합니다.
@@ -126,12 +128,56 @@ ragcli chat --provider openai -m gpt-4o-mini
 
 ---
 
-### 4. `greet` (인사 및 데모)
+### 4. `pdf` (PDF 요약)
 
-기본 환영 메시지를 출력하는 데모 커맨드입니다.
+PDF 파일을 읽어 텍스트를 추출한 뒤 LLM을 통해 핵심 내용을 요약 정리합니다. Qdrant나 임베딩 없이 순수하게 LLM 한 번 호출로 요약을 수행합니다.
+
+| 플래그 | 단축키 | 설명 | 기본값 |
+| :--- | :--- | :--- | :--- |
+| `--file` | `-f` | 요약할 PDF 파일 경로 | (없음, 필수) |
+| `--provider` | (없음) | LLM 프로바이더 (`ollama`, `openai`, `azure`) | `ollama` |
+| `--model` | `-m` | 사용 LLM 모델명 | 프로바이더별 기본값 |
+| `--url` | `-u` | LLM 서버 URL | 프로바이더별 기본값 |
+| `--language` | `-l` | 요약 출력 언어 (`ko`, `en` 등) | `ko` |
+
+#### 사용 예시
 
 ```bash
-ragcli greet --name "Developer"
+# 1) 로컬 Ollama로 PDF 요약 (기본 한국어)
+ragcli pdf -f ./documents/report.pdf
+
+# 2) OpenAI를 사용해 영어로 요약
+ragcli pdf -f ./documents/report.pdf --provider openai -m gpt-4o-mini -l en
+
+# 3) Ollama 모델 및 URL 직접 지정
+ragcli pdf -f ./docs/paper.pdf -m llama3 -u http://localhost:11434
+```
+
+---
+
+### 5. `ocr` (이미지 OCR + 요약)
+
+영수증, 문서 스캔, 표 등 이미지 파일의 텍스트를 Vision LLM으로 추출(OCR)하고 핵심 내용을 요약 정리합니다. Qdrant나 임베딩 없이 LLM 한 번 호출로 동작합니다. Vision 기능이 지원되는 모델(예: `llava`, `gpt-4o` 등)을 사용해야 합니다.
+
+| 플래그 | 단축키 | 설명 | 기본값 |
+| :--- | :--- | :--- | :--- |
+| `--file` | `-f` | OCR 할 이미지 파일 경로 (`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.bmp`) | (없음, 필수) |
+| `--provider` | (없음) | LLM 프로바이더 (`ollama`, `openai`, `azure`) | `ollama` |
+| `--model` | `-m` | Vision LLM 모델명 (예: `llava`, `gpt-4o`) | 프로바이더별 기본값 |
+| `--url` | `-u` | LLM 서버 URL | 프로바이더별 기본값 |
+| `--language` | `-l` | 요약 출력 언어 (`ko`, `en` 등) | `ko` |
+
+#### 사용 예시
+
+```bash
+# 1) 로컬 Ollama(llava)로 영수증 이미지 OCR + 요약 (기본 한국어)
+ragcli ocr -f ./receipts/store_receipt.jpg -m llava
+
+# 2) OpenAI GPT-4o를 사용해 영어로 OCR + 요약
+ragcli ocr -f ./documents/scan.png --provider openai -m gpt-4o -l en
+
+# 3) Ollama URL 및 모델 직접 지정
+ragcli ocr -f ./charts/table.jpg -m llava -u http://localhost:11434
 ```
 
 ---
@@ -162,7 +208,7 @@ cmake --build build/debug --target ragcli ragcli_tests
 GoogleTest 기반 단위 테스트가 커맨드별로 분리되어 작성되어 있습니다 (`tests/`).
 
 ```bash
-ctest --test-dir build/debug -R "^(RegisterCommands|GreetCommand|RagCommand|RagRunner|ChatCommand|ChatRunner|Indexer|ImageFileSource|MarkdownChunker|Base64)" --output-on-failure
+ctest --test-dir build/debug -R "^(RegisterCommands|RagCommand|RagRunner|ChatCommand|ChatRunner|Indexer|ImageFileSource|MarkdownChunker|Base64|PdfSummarize)" --output-on-failure
 ```
 
 ---

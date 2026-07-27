@@ -11,7 +11,7 @@ TEST(CollectionCommand, HasExpectedFlags) {
     auto holders = ragcli::cmd::register_commands(root);
 
     ASSERT_GE(root.subcommands.size(), 4U);
-    const auto &collection = *root.subcommands[3];
+    const auto &collection = *root.subcommands[2];
     EXPECT_EQ(collection.name, "collection");
 
     bool found_list = false;

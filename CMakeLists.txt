@@ -25,7 +25,7 @@ FetchContent_Declare(
   llm_client
   GIT_REPOSITORY https://gitlab.com/wkqco33/LLM_client.git
   GIT_TAG        main
-  PATCH_COMMAND  ${CMAKE_COMMAND} -E chdir <SOURCE_DIR> git apply --ignore-whitespace ${CMAKE_CURRENT_SOURCE_DIR}/cmake/llm_client-easily-swappable-params.patch || ${CMAKE_COMMAND} -E true
+  PATCH_COMMAND  bash -c "git apply --ignore-whitespace ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ollama-native-image-format.patch || true"
 )
 FetchContent_MakeAvailable(llm_client)
 

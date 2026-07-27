@@ -8,8 +8,8 @@ TEST(ChatCommand, HasExpectedFlags) {
     wcppcli::Command root;
     auto holders = ragcli::cmd::register_commands(root);
 
-    ASSERT_GE(root.subcommands.size(), 2U);
-    const auto &chat = *root.subcommands[1];
+    ASSERT_GE(root.subcommands.size(), 4U);
+    const auto &chat = *root.subcommands[0];
     EXPECT_EQ(chat.name, "chat");
 
     bool found_model = false;
