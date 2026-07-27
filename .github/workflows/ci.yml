@@ -20,7 +20,8 @@ jobs:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
         run: |
           if [ -n "$GITLAB_TOKEN" ]; then
-            git config --global url."https://oauth2:${GITLAB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
+            CLEAN_TOKEN=$(printf '%s' "$GITLAB_TOKEN" | tr -d '\n\r')
+            git config --global url."https://oauth2:${CLEAN_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
           fi
 
       - name: Install build tools
@@ -53,7 +54,8 @@ jobs:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
         run: |
           if [ -n "$GITLAB_TOKEN" ]; then
-            git config --global url."https://oauth2:${GITLAB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
+            CLEAN_TOKEN=$(printf '%s' "$GITLAB_TOKEN" | tr -d '\n\r')
+            git config --global url."https://oauth2:${CLEAN_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
           fi
 
       - name: Install build tools
