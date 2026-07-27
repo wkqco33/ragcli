@@ -35,6 +35,48 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Configure GitLab credentials (Unix)
+        if: runner.os != 'Windows'
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+        run: |
+          if [ -n "$GITLAB_TOKEN" ]; then
+            CLEAN_TOKEN=$(printf '%s' "$GITLAB_TOKEN" | tr -d '\n\r')
+            git config --global url."https://oauth2:${CLEAN_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
+          fi
+
+      - name: Configure GitHub credentials (Unix)
+        if: runner.os != 'Windows'
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          if [ -n "$GH_PAT" ]; then
+            CLEAN_TOKEN=$(printf '%s' "$GH_PAT" | tr -d '\n\r')
+            git config --global url."https://x-access-token:${CLEAN_TOKEN}@github.com/".insteadOf "https://github.com/"
+          fi
+
+      - name: Configure GitLab credentials (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+        run: |
+          if ($env:GITLAB_TOKEN) {
+            $token = $env:GITLAB_TOKEN.Trim()
+            git config --global url."https://oauth2:$token@gitlab.com/".insteadOf "https://gitlab.com/"
+          }
+
+      - name: Configure GitHub credentials (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          if ($env:GH_PAT) {
+            $token = $env:GH_PAT.Trim()
+            git config --global url."https://x-access-token:$token@github.com/".insteadOf "https://github.com/"
+          }
+
       - name: Install build tools (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -69,10 +111,10 @@ jobs:
           "VCPKG_ROOT=$env:USERPROFILE\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Configure
-        run: cmake --preset release -DBUILD_TESTING=OFF
+        run: cmake --preset release
 
       - name: Build
-        run: cmake --build --preset release --target ragcli
+        run: cmake --build --preset release
 
       - name: Package (Unix)
         if: runner.os != 'Windows'
