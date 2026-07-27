@@ -30,10 +30,9 @@ constexpr int k_ppm_width = 2;
 constexpr int k_ppm_height = 2;
 constexpr int k_ppm_channels = 3;
 constexpr int k_ppm_max_value = 255;
-constexpr std::size_t k_ppm_pixel_bytes =
-    static_cast<std::size_t>(k_ppm_width) *
-    static_cast<std::size_t>(k_ppm_height) *
-    static_cast<std::size_t>(k_ppm_channels);
+constexpr std::size_t k_ppm_pixel_bytes = static_cast<std::size_t>(k_ppm_width) *
+                                          static_cast<std::size_t>(k_ppm_height) *
+                                          static_cast<std::size_t>(k_ppm_channels);
 } // namespace
 
 TEST(Indexer, IndexesTextChunksToQdrant) {
@@ -111,8 +110,8 @@ TEST(Indexer, SimpleChunkerSplitsLongText) {
     auto source = std::make_shared<MockDocumentSource>(pages, "long.txt");
     auto embed_provider = std::make_shared<MockEmbeddingProvider>();
     auto qdrant_port = std::make_shared<MockQdrantPort>();
-    auto chunker = std::make_shared<ragcli::chunking::SimpleChunker>(k_test_chunk_size,
-                                                                    k_test_overlap);
+    auto chunker =
+        std::make_shared<ragcli::chunking::SimpleChunker>(k_test_chunk_size, k_test_overlap);
 
     ragcli::indexing::Indexer indexer(embed_provider, qdrant_port, chunker);
 
@@ -130,12 +129,19 @@ TEST(ImageFileSource, DecodesPpmImage) {
     {
         std::ofstream ppm(ppm_path, std::ios::binary);
         // 2x2 RGB 이미지 (P6 binary PPM)
-        ppm << "P6\n" << k_ppm_width << ' ' << k_ppm_height << "\n" << k_ppm_max_value
-            << "\n";
-        std::array<unsigned char, k_ppm_pixel_bytes> pixels = {k_ppm_max_value, 0,               0, // red
-                                                              0,               k_ppm_max_value, 0, // green
-                                                              0,               0,               k_ppm_max_value, // blue
-                                                              k_ppm_max_value, k_ppm_max_value, k_ppm_max_value}; // white
+        ppm << "P6\n" << k_ppm_width << ' ' << k_ppm_height << "\n" << k_ppm_max_value << "\n";
+        std::array<unsigned char, k_ppm_pixel_bytes> pixels = {k_ppm_max_value,
+                                                               0,
+                                                               0, // red
+                                                               0,
+                                                               k_ppm_max_value,
+                                                               0, // green
+                                                               0,
+                                                               0,
+                                                               k_ppm_max_value, // blue
+                                                               k_ppm_max_value,
+                                                               k_ppm_max_value,
+                                                               k_ppm_max_value}; // white
         ppm.write(reinterpret_cast<const char *>(pixels.data()), pixels.size());
     }
 

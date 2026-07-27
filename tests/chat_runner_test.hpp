@@ -23,8 +23,8 @@ class MockLlmClient : public llm_client::LLMClientInterface {
     }
 
     auto chatStream(const std::vector<llm_client::Message> &messages,
-                    llm_client::StreamCallback callback, const llm_client::RequestParams &params)
-        -> llm_client::ResponseData override {
+                    llm_client::StreamCallback callback,
+                    const llm_client::RequestParams &params) -> llm_client::ResponseData override {
         // 실제 스트리밍 대신 chat() 의 전체 응답을 단일 chunk 로 흘려보내
         // ChatRunner 의 스트리밍 경로를 그대로 재사용해 검증한다. chat() 을 통해
         // 호출하므로 MockLlmClientWithError 의 오버라이드(에러 발생)도 그대로 적용된다.

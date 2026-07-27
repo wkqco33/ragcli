@@ -18,8 +18,8 @@ struct ChatTargets {
 
 // CLI > env > fallback 우선순위로 chat 설정값을 선택한다.
 inline auto resolve_chat_targets(const std::string *cli_url, const std::string *cli_model,
-                                 const std::string *cli_provider, const wcppcli::WConf &conf)
-    -> ChatTargets {
+                                 const std::string *cli_provider,
+                                 const wcppcli::WConf &conf) -> ChatTargets {
     llm::ProviderOverrides overrides{cli_provider, cli_url, cli_model, /*embed_model=*/nullptr};
     llm::ProviderTargets resolved = llm::resolve_provider_targets(overrides, conf);
 

@@ -114,20 +114,18 @@ class PdfSummarizeCommand : public CommandBase {
         return 0;
     }
 
-    static auto build_summary_prompt(const std::string &text, const std::string &language)
-        -> std::string {
+    static auto build_summary_prompt(const std::string &text,
+                                     const std::string &language) -> std::string {
         std::string lang_instruction;
         if (language == "ko" || language == "한국어" || language == "korean") {
-            lang_instruction =
-                "요약은 한국어로 작성하세요. ";
+            lang_instruction = "요약은 한국어로 작성하세요. ";
         } else if (language == "en" || language == "english") {
             lang_instruction = "Write the summary in English. ";
         } else {
             lang_instruction = "Write the summary in " + language + ". ";
         }
 
-        return std::string(
-                   "아래 PDF 문서의 텍스트를 읽고 핵심 내용을 요약해주세요. ") +
+        return std::string("아래 PDF 문서의 텍스트를 읽고 핵심 내용을 요약해주세요. ") +
                lang_instruction +
                "문서의 주요 주제, 핵심 포인트, 그리고 중요한 세부 사항을 포함하여 "
                "명확하고 간결하게 정리해주세요.\n\n"

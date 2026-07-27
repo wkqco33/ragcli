@@ -34,8 +34,7 @@ class OcrCommand : public CommandBase {
                         &file_path_);
         add_string_flag(*cmd, "provider", 0,
                         "LLM provider: 'ollama' (default), 'openai', or 'azure'", &provider_);
-        add_string_flag(*cmd, "model", 'm', "Vision LLM model name (e.g. llava, gpt-4o)",
-                        &model_);
+        add_string_flag(*cmd, "model", 'm', "Vision LLM model name (e.g. llava, gpt-4o)", &model_);
         add_string_flag(*cmd, "url", 'u',
                         "LLM base URL (default depends on --provider, e.g. "
                         "http://localhost:11434 for ollama)",
@@ -78,8 +77,8 @@ class OcrCommand : public CommandBase {
         const std::string mime_type = detect_mime_type(file_path_);
         const std::string image_base64 = ragcli::utils::base64_encode(image_bytes);
 
-        wcppcli::WLog::info("Image size: " + std::to_string(image_bytes.size()) +
-                            " bytes (" + mime_type + ")");
+        wcppcli::WLog::info("Image size: " + std::to_string(image_bytes.size()) + " bytes (" +
+                            mime_type + ")");
         wcppcli::WLog::info("Requesting OCR + summary from LLM (" + targets.provider + " / " +
                             targets.model + ")...");
 

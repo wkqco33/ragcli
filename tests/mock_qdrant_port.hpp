@@ -17,13 +17,13 @@ class MockQdrantPort : public rag::QdrantPort {
         return search_results_;
     }
 
-    auto create_collection(int /*vector_size*/, const std::string & /*distance*/) const
-        -> void override {
+    auto create_collection(int /*vector_size*/,
+                           const std::string & /*distance*/) const -> void override {
         collection_created_ = true;
     }
 
-    auto upsert_point(const std::vector<float> & /*embedding*/, const rag::UpsertPoint &data) const
-        -> void override {
+    auto upsert_point(const std::vector<float> & /*embedding*/,
+                      const rag::UpsertPoint &data) const -> void override {
         last_upsert_content_ = data.content;
         last_upsert_title_ = data.title;
         last_data_.push_back(data);

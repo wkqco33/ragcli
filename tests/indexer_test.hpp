@@ -31,8 +31,8 @@ class MockDocumentSource : public document::DocumentSource {
 
 class MockEmbeddingProvider : public embedding::EmbeddingProvider {
   public:
-    auto embed(const std::vector<std::string> &texts, const std::string & /*model*/) const
-        -> std::vector<std::vector<float>> override {
+    auto embed(const std::vector<std::string> &texts,
+               const std::string & /*model*/) const -> std::vector<std::vector<float>> override {
         std::vector<std::vector<float>> result;
         result.reserve(texts.size());
         for (std::size_t i = 0; i < texts.size(); ++i) {

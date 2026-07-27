@@ -74,7 +74,8 @@ class CollectionCommand : public CommandBase {
                 return 0;
             }
 
-            wcppcli::WLog::error("Please specify one of --list (-l), --info (-i), or --delete (-d).");
+            wcppcli::WLog::error(
+                "Please specify one of --list (-l), --info (-i), or --delete (-d).");
             return 1;
 
         } catch (const std::exception &e) {
