@@ -64,10 +64,10 @@ class RagCommand : public CommandBase {
                         "Chunking strategy: 'simple' or 'markdown' (default: simple)",
                         &chunker_type_);
         add_int_flag(*cmd, "chunk-size", 0,
-                    "Simple chunker: chunk size in characters (default: 512)", &chunk_size_);
+                     "Simple chunker: chunk size in characters (default: 512)", &chunk_size_);
         add_int_flag(*cmd, "chunk-overlap", 0,
-                    "Simple chunker: overlap between chunks in characters (default: 64)",
-                    &chunk_overlap_);
+                     "Simple chunker: overlap between chunks in characters (default: 64)",
+                     &chunk_overlap_);
         add_string_flag(*cmd, "distance", 0,
                         "Qdrant distance metric: 'Cosine' (default), 'Euclid', 'Dot', or "
                         "'Manhattan'",
@@ -84,7 +84,7 @@ class RagCommand : public CommandBase {
         conf.read_file(".env");
 
         // 설정 우선순위: CLI 플래그 > 환경 변수 > 코드 기본값
-        rag::RagCliOverrides overrides{llm_url_,  model_,      embed_model_,
+        rag::RagCliOverrides overrides{llm_url_,    model_,      embed_model_,
                                        qdrant_url_, collection_, provider_};
         rag::RagTargets targets = rag::RagRunner::resolve_targets(overrides, conf);
 
@@ -100,12 +100,12 @@ class RagCommand : public CommandBase {
         if (chunker_type_ == "markdown") {
             chunker = std::make_shared<chunking::MarkdownChunker>();
         } else {
-            const int chunk_size = rag::pick_first_positive_int(
-                chunk_size_, conf.get_int("CHUNK_SIZE"),
-                static_cast<int>(chunking::k_default_chunk_size));
-            const int chunk_overlap = rag::pick_first_positive_int(
-                chunk_overlap_, conf.get_int("CHUNK_OVERLAP"),
-                static_cast<int>(chunking::k_default_overlap));
+            const int chunk_size =
+                rag::pick_first_positive_int(chunk_size_, conf.get_int("CHUNK_SIZE"),
+                                             static_cast<int>(chunking::k_default_chunk_size));
+            const int chunk_overlap =
+                rag::pick_first_positive_int(chunk_overlap_, conf.get_int("CHUNK_OVERLAP"),
+                                             static_cast<int>(chunking::k_default_overlap));
             chunker = std::make_shared<chunking::SimpleChunker>(
                 chunking::ChunkSize{static_cast<std::size_t>(chunk_size)},
                 chunking::Overlap{static_cast<std::size_t>(chunk_overlap)});
@@ -151,7 +151,8 @@ class RagCommand : public CommandBase {
                           std::shared_ptr<rag::QdrantPort> qdrant_port,
                           std::shared_ptr<chunking::Chunker> chunker,
                           const std::string &distance) -> int {
-        auto embed_provider = std::make_shared<embedding::LlmEmbeddingProvider>(std::move(llm_port));
+        auto embed_provider =
+            std::make_shared<embedding::LlmEmbeddingProvider>(std::move(llm_port));
 
         indexing::IndexOptions options;
         options.embed_model = targets.embed_model;

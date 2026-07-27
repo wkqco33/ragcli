@@ -16,8 +16,8 @@ class LlmEmbeddingProvider : public EmbeddingProvider {
     explicit LlmEmbeddingProvider(std::shared_ptr<rag::LlmPort> llm_port)
         : llm_port_(std::move(llm_port)) {}
 
-    auto embed(const std::vector<std::string> &texts, const std::string &model) const
-        -> std::vector<std::vector<float>> override {
+    auto embed(const std::vector<std::string> &texts,
+               const std::string &model) const -> std::vector<std::vector<float>> override {
         llm_client::EmbeddingParams params;
         params.model = model;
 

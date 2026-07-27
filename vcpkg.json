@@ -5,6 +5,7 @@
   "dependencies": [
     "cpr",
     "nlohmann-json",
-    "stb"
+    "stb",
+    "spdlog"
   ]
 }

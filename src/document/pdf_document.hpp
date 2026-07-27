@@ -65,8 +65,8 @@ class PdfFileSource : public DocumentSource {
         return text;
     }
 
-    auto extract_page(const cpppdf::PdfDocument &doc, int page_index) const
-        -> std::vector<ExtractedPage> {
+    auto extract_page(const cpppdf::PdfDocument &doc,
+                      int page_index) const -> std::vector<ExtractedPage> {
         std::vector<ExtractedPage> pages;
 
         ExtractedPage text_page;

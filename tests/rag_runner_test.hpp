@@ -31,8 +31,7 @@ class MockLlmPort : public rag::LlmPort {
     }
 
     auto chat(const std::vector<llm_client::Message> & /*messages*/,
-              const llm_client::RequestParams &params) const
-        -> llm_client::ResponseData override {
+              const llm_client::RequestParams &params) const -> llm_client::ResponseData override {
         llm_client::ResponseData response;
         response.content = "mock vision answer with model " + params.model;
         response.model = params.model;
@@ -49,9 +48,9 @@ class MockLlmPort : public rag::LlmPort {
         return response;
     }
 
-    auto chat_stream(const std::vector<llm_client::Message> &messages,
-                     llm_client::StreamCallback callback, const llm_client::RequestParams &params) const
-        -> llm_client::ResponseData override {
+    auto chat_stream(
+        const std::vector<llm_client::Message> &messages, llm_client::StreamCallback callback,
+        const llm_client::RequestParams &params) const -> llm_client::ResponseData override {
         auto response = chat(messages, params);
         if (callback) {
             callback(response.content);

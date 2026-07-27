@@ -51,7 +51,7 @@ class ChatCommand : public CommandBase {
         wcppcli::WLog::info("Type 'exit' or 'quit' to end chat.");
 
         auto llm_client = llm_client::LLMClientFactory::create(targets.provider, targets.api_key,
-                                                                targets.url, targets.api_version);
+                                                               targets.url, targets.api_version);
         ragcli::chat::ChatRunner runner(std::move(llm_client));
 
         return runner.run(targets, {});
