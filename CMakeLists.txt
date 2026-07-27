@@ -43,6 +43,14 @@ set(BUILD_TESTING OFF)
 FetchContent_MakeAvailable(cpppdf)
 unset(BUILD_TESTING) # restore visibility of the cached BUILD_TESTING value
 
+# On Windows, cpppdf/src/renderer/terminal.cpp includes <sys/ioctl.h> which
+# does not exist in the MinGW-w64 headers.  Inject a shim that provides the
+# POSIX ioctl/winsize interface via the Windows Console API.
+if(WIN32)
+  target_include_directories(cpppdf PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/win-stubs)
+endif()
+
 set(BUILD_TESTING ON CACHE BOOL "" FORCE)
 
 add_executable(ragcli
