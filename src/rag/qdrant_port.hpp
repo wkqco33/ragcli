@@ -43,14 +43,14 @@ class QdrantPort {
     virtual ~QdrantPort() = default;
 
     virtual auto search(const std::vector<float> &query_vec, int limit,
-                        double score_threshold = 0.0, const std::string &vector_name = "") const
-        -> std::vector<SearchHit> = 0;
+                        double score_threshold = 0.0,
+                        const std::string &vector_name = "") const -> std::vector<SearchHit> = 0;
 
-    virtual auto create_collection(int vector_size, const std::string &distance = "Cosine") const
-        -> void = 0;
+    virtual auto create_collection(int vector_size,
+                                   const std::string &distance = "Cosine") const -> void = 0;
 
-    virtual auto upsert_point(const std::vector<float> &embedding, const UpsertPoint &data) const
-        -> void = 0;
+    virtual auto upsert_point(const std::vector<float> &embedding,
+                              const UpsertPoint &data) const -> void = 0;
 };
 
 // 실제 qdrant::QdrantClient 를 QdrantPort 에 적응시킨 어댑터.
@@ -77,8 +77,8 @@ class QdrantClientAdapter : public QdrantPort {
         client_->create_collection(vector_size, distance);
     }
 
-    auto upsert_point(const std::vector<float> &embedding, const UpsertPoint &data) const
-        -> void override {
+    auto upsert_point(const std::vector<float> &embedding,
+                      const UpsertPoint &data) const -> void override {
         qdrant::QdrantClient::PointData point_data;
         point_data.content = data.content;
         point_data.title = data.title;

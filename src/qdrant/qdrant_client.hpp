@@ -25,8 +25,7 @@ class QdrantClient {
         cpr::Response response = cpr::Get(cpr::Url{url});
 
         verify_response(response, "Qdrant get collection info failed");
-        return parse_json_safely(JsonText{response.text},
-                               JsonContext{"Qdrant collection info"});
+        return parse_json_safely(JsonText{response.text}, JsonContext{"Qdrant collection info"});
     }
 
     // 모든 컬렉션 목록을 조회한다.
@@ -35,8 +34,7 @@ class QdrantClient {
         cpr::Response response = cpr::Get(cpr::Url{url});
 
         verify_response(response, "Qdrant list collections failed");
-        return parse_json_safely(JsonText{response.text},
-                               JsonContext{"Qdrant collections list"});
+        return parse_json_safely(JsonText{response.text}, JsonContext{"Qdrant collections list"});
     }
 
     // 컬렉션을 삭제한다.
@@ -71,10 +69,9 @@ class QdrantClient {
     };
 
     // query_vec 와 가장 가까운 k 개의 페이로드를 점수순으로 반환한다.
-    [[nodiscard]] auto search(const std::vector<float> &query_vec, int limit,
-                              double score_threshold = 0.0,
-                              const std::string &vector_name = "") const
-        -> std::vector<SearchResultItem> {
+    [[nodiscard]] auto
+    search(const std::vector<float> &query_vec, int limit, double score_threshold = 0.0,
+           const std::string &vector_name = "") const -> std::vector<SearchResultItem> {
         if (limit <= 0) {
             return {};
         }
@@ -149,9 +146,11 @@ class QdrantClient {
   private:
     static constexpr int k_http_ok = 200;
 
-    static auto verify_response(const cpr::Response &response, const std::string &action_name) -> void {
+    static auto verify_response(const cpr::Response &response,
+                                const std::string &action_name) -> void {
         if (response.error) {
-            throw std::runtime_error(action_name + " due to connection error: " + response.error.message);
+            throw std::runtime_error(action_name +
+                                     " due to connection error: " + response.error.message);
         }
         if (response.status_code != k_http_ok) {
             throw std::runtime_error(action_name + " (HTTP " +
@@ -174,8 +173,8 @@ class QdrantClient {
         try {
             return json::parse(text.value);
         } catch (const json::parse_error &e) {
-            throw std::runtime_error(context.value + " invalid JSON format: " +
-                                     std::string(e.what()));
+            throw std::runtime_error(context.value +
+                                     " invalid JSON format: " + std::string(e.what()));
         }
     }
 
@@ -185,16 +184,15 @@ class QdrantClient {
         std::string vector_name;
     };
 
-    static auto execute_search_request(const std::string &url, const std::string &body)
-        -> cpr::Response {
+    static auto execute_search_request(const std::string &url,
+                                       const std::string &body) -> cpr::Response {
         cpr::Header headers{{"Content-Type", "application/json"}};
         cpr::Response response = cpr::Post(cpr::Url{url}, headers, cpr::Body{body});
         verify_response(response, "Qdrant search failed");
         return response;
     }
 
-    static auto parse_search_response(const json &res)
-        -> std::vector<SearchResultItem> {
+    static auto parse_search_response(const json &res) -> std::vector<SearchResultItem> {
         std::vector<SearchResultItem> results;
 
         if (!res.contains("result") || !res["result"].is_array()) {

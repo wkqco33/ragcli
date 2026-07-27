@@ -47,8 +47,9 @@ class Indexer {
 
             const auto embeddings = embed_chunks(chunks, options.embed_model);
             if (embeddings.empty() || embeddings.size() != chunks.size()) {
-                wcppcli::WLog::error("Embedding returned invalid count (" + std::to_string(embeddings.size()) +
-                                     " embeddings for " + std::to_string(chunks.size()) + " chunks).");
+                wcppcli::WLog::error("Embedding returned invalid count (" +
+                                     std::to_string(embeddings.size()) + " embeddings for " +
+                                     std::to_string(chunks.size()) + " chunks).");
                 return 1;
             }
 
@@ -85,8 +86,8 @@ class Indexer {
     }
 
   private:
-    auto embed_chunks(const std::vector<chunking::Chunk> &chunks, const std::string &model) const
-        -> std::vector<std::vector<float>> {
+    auto embed_chunks(const std::vector<chunking::Chunk> &chunks,
+                      const std::string &model) const -> std::vector<std::vector<float>> {
         if (chunks.empty()) {
             return {};
         }
@@ -117,9 +118,8 @@ class Indexer {
                 batch_texts.push_back(chunks[i].text);
             }
 
-            futures.push_back(std::async(
-                std::launch::async,
-                [this, texts = std::move(batch_texts), model]() {
+            futures.push_back(
+                std::async(std::launch::async, [this, texts = std::move(batch_texts), model]() {
                     return embed_provider_->embed(texts, model);
                 }));
         }

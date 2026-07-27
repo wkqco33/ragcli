@@ -27,8 +27,8 @@ struct ProviderOverrides {
 };
 
 namespace detail {
-inline auto pick(const std::string *cli, const std::string &env, const std::string &fallback)
-    -> std::string {
+inline auto pick(const std::string *cli, const std::string &env,
+                 const std::string &fallback) -> std::string {
     if (cli != nullptr && !cli->empty()) {
         return *cli;
     }
@@ -40,8 +40,8 @@ inline auto pick(const std::string *cli, const std::string &env, const std::stri
 } // namespace detail
 
 // CLI 플래그 > 환경 변수(.env) > 코드 기본값 순으로 LLM 프로바이더 설정을 해석한다.
-inline auto resolve_provider_targets(const ProviderOverrides &overrides, const wcppcli::WConf &conf)
-    -> ProviderTargets {
+inline auto resolve_provider_targets(const ProviderOverrides &overrides,
+                                     const wcppcli::WConf &conf) -> ProviderTargets {
     ProviderTargets targets;
     targets.provider = detail::pick(overrides.provider, conf.get_string("LLM_PROVIDER"), "ollama");
 
@@ -49,8 +49,8 @@ inline auto resolve_provider_targets(const ProviderOverrides &overrides, const w
         targets.base_url = detail::pick(overrides.base_url, conf.get_string("OPENAI_BASE_URL"), "");
         targets.model =
             detail::pick(overrides.model, conf.get_string("OPENAI_MODEL"), "gpt-4o-mini");
-        targets.embed_model = detail::pick(overrides.embed_model, conf.get_string("OPENAI_EMBED_MODEL"),
-                                           "text-embedding-3-small");
+        targets.embed_model = detail::pick(
+            overrides.embed_model, conf.get_string("OPENAI_EMBED_MODEL"), "text-embedding-3-small");
         targets.api_key = conf.get_string("OPENAI_API_KEY");
     } else if (targets.provider == "azure") {
         targets.base_url =
@@ -66,8 +66,8 @@ inline auto resolve_provider_targets(const ProviderOverrides &overrides, const w
         targets.base_url = detail::pick(overrides.base_url, conf.get_string("OLLAMA_BASE_URL"),
                                         "http://localhost:11434");
         targets.model = detail::pick(overrides.model, conf.get_string("OLLAMA_MODEL"), "llama3");
-        targets.embed_model = detail::pick(overrides.embed_model, conf.get_string("OLLAMA_EMBED_MODEL"),
-                                           "nomic-embed-text");
+        targets.embed_model = detail::pick(
+            overrides.embed_model, conf.get_string("OLLAMA_EMBED_MODEL"), "nomic-embed-text");
     }
 
     return targets;

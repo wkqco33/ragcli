@@ -1,0 +1,6 @@
+{
+  "description": "패키지 설명을 입력하세요.",
+  "author": "작성자 또는 조직명을 입력하세요.",
+  "homepage": "https://example.com",
+  "bin_name": "ragcli"
+}

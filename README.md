@@ -4,6 +4,16 @@ Qdrant 벡터 데이터베이스와 LLM(Ollama, OpenAI, Azure OpenAI)을 연동�
 
 ---
 
+## ppm 설치
+
+`ppm`으로 설치할 수 있도록 메타데이터(`ppm.json`)가 포함되어 있습니다.
+
+```bash
+ppm install wkqco33/ragcli
+```
+
+---
+
 ## 주요 기능
 
 - **RAG (Retrieval-Augmented Generation)**: Qdrant에 저장된 지식을 임베딩 벡터 검색으로 추출하고 LLM을 통해 답변을 생성합니다.

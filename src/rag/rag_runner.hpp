@@ -49,13 +49,14 @@ class RagRunner {
     };
 
     // CLI 플래그 > 환경 변수 > 코드 기본값 순으로 최종 설정을 결정한다.
-    static auto resolve_targets(const RagCliOverrides &overrides, const wcppcli::WConf &conf)
-        -> RagTargets {
+    static auto resolve_targets(const RagCliOverrides &overrides,
+                                const wcppcli::WConf &conf) -> RagTargets {
         RagTargets targets;
 
         llm::ProviderOverrides provider_overrides{&overrides.provider, &overrides.llm_url,
-                                                   &overrides.model, &overrides.embed_model};
-        llm::ProviderTargets provider_targets = llm::resolve_provider_targets(provider_overrides, conf);
+                                                  &overrides.model, &overrides.embed_model};
+        llm::ProviderTargets provider_targets =
+            llm::resolve_provider_targets(provider_overrides, conf);
         targets.provider = provider_targets.provider;
         targets.llm_url = provider_targets.base_url;
         targets.model = provider_targets.model;
@@ -117,8 +118,9 @@ class RagRunner {
                 return 1;
             }
 
-            qdrant_port_->upsert_point(embed_res.embeddings[0], {content_to_add, input.title, "",
-                                                                 "ragcli_add", 0, 0, false, 0, 0, ""});
+            qdrant_port_->upsert_point(
+                embed_res.embeddings[0],
+                {content_to_add, input.title, "", "ragcli_add", 0, 0, false, 0, 0, ""});
             wcppcli::WLog::success("Successfully added knowledge to Qdrant collection '" +
                                    targets.collection + "'.");
         } catch (const std::exception &e) {
@@ -177,10 +179,11 @@ class RagRunner {
             // 답변을 토큰 단위로 즉시 화면에 출력한다.
             std::cout << "\n[Answer]\n";
             bool any_chunk_streamed = false;
-            llm_client::StreamCallback print_chunk = [&any_chunk_streamed](const std::string &chunk) {
-                any_chunk_streamed = true;
-                std::cout << chunk << std::flush;
-            };
+            llm_client::StreamCallback print_chunk =
+                [&any_chunk_streamed](const std::string &chunk) {
+                    any_chunk_streamed = true;
+                    std::cout << chunk << std::flush;
+                };
 
             llm_client::ResponseData response;
             if (blocks.size() > 1) {

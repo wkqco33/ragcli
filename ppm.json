@@ -1,0 +1,6 @@
+{
+  "description": "Qdrant + LLM 기반 RAG/문서 인덱싱/멀티모달 처리를 지원하는 C++ CLI 도구",
+  "author": "wkqco33",
+  "homepage": "https://github.com/wkqco33/ragcli",
+  "bin_name": "ragcli"
+}

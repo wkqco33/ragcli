@@ -13,8 +13,8 @@ class EmbeddingProvider {
     virtual ~EmbeddingProvider() = default;
 
     // texts 의 각 항목에 대한 임베딩을 반환한다.
-    virtual auto embed(const std::vector<std::string> &texts, const std::string &model) const
-        -> std::vector<std::vector<float>> = 0;
+    virtual auto embed(const std::vector<std::string> &texts,
+                       const std::string &model) const -> std::vector<std::vector<float>> = 0;
 };
 
 } // namespace ragcli::embedding

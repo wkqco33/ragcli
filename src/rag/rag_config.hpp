@@ -11,9 +11,9 @@ struct RagTargets {
     std::string embed_model;
     std::string qdrant_url;
     std::string collection;
-    std::string provider;     // "ollama"(기본값), "openai", "azure"
-    std::string api_key;      // ollama 는 항상 빈 문자열
-    std::string api_version;  // azure 전용
+    std::string provider;    // "ollama"(기본값), "openai", "azure"
+    std::string api_key;     // ollama 는 항상 빈 문자열
+    std::string api_version; // azure 전용
 };
 
 // CLI > env > fallback 우선순위로 설정값을 선택하기 위한 입력.

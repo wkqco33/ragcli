@@ -20,8 +20,8 @@ inline auto format_score(double score) -> std::string {
 }
 
 // Qdrant 검색 결과를 바탕으로 LLM 질의용 프롬프트를 조립한다.
-inline auto build_query_prompt(const std::vector<SearchHit> &hits, const std::string &query)
-    -> std::string {
+inline auto build_query_prompt(const std::vector<SearchHit> &hits,
+                               const std::string &query) -> std::string {
     std::string context;
     for (const auto &item : hits) {
         context += "[score: " + format_score(item.score) + "] " + item.text + "\n";
