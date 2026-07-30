@@ -9,7 +9,7 @@
 #include "command.hpp"
 #include "flag_helper.hpp"
 #include "qdrant/qdrant_client.hpp"
-#include "wcppcli/wconf.hpp"
+#include "utils/config_path.hpp"
 
 namespace ragcli::cmd {
 
@@ -37,7 +37,7 @@ class CollectionCommand : public CommandBase {
   private:
     auto run_collection() -> int {
         wcppcli::WConf conf;
-        conf.read_file(".env");
+        ragcli::utils::load_config(conf);
 
         std::string url = !qdrant_url_.empty() ? qdrant_url_ : conf.get_string("QDRANT_BASE_URL");
         if (url.empty()) {

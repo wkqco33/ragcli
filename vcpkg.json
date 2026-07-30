@@ -6,6 +6,7 @@
     "cpr",
     "nlohmann-json",
     "stb",
-    "spdlog"
+    "spdlog",
+    "fmt"
   ]
 }

@@ -11,7 +11,7 @@
 #include "command.hpp"
 #include "flag_helper.hpp"
 #include "llm_client/llm_client_factory.hpp"
-#include "wcppcli/wconf.hpp"
+#include "utils/config_path.hpp"
 
 namespace ragcli::cmd {
 
@@ -41,7 +41,7 @@ class ChatCommand : public CommandBase {
   private:
     auto run_chat() -> int {
         wcppcli::WConf conf;
-        conf.read_file(".env");
+        ragcli::utils::load_config(conf);
 
         const ragcli::chat::ChatTargets targets =
             ragcli::chat::resolve_chat_targets(&base_url_, &model_, &provider_, conf);

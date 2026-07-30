@@ -17,6 +17,7 @@
 #include "llm/provider_config.hpp"
 #include "llm_client/llm_client_factory.hpp"
 #include "utils/base64.hpp"
+#include "utils/config_path.hpp"
 
 namespace ragcli::cmd {
 
@@ -60,7 +61,7 @@ class OcrCommand : public CommandBase {
         }
 
         wcppcli::WConf conf;
-        conf.read_file(".env");
+        ragcli::utils::load_config(conf);
 
         llm::ProviderOverrides overrides{&provider_, &base_url_, &model_, nullptr};
         llm::ProviderTargets targets = llm::resolve_provider_targets(overrides, conf);

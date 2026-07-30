@@ -20,6 +20,7 @@
 #include "rag/rag_config.hpp"
 #include "rag/rag_runner.hpp"
 #include "wcppcli/wconf.hpp"
+#include "utils/config_path.hpp"
 
 namespace ragcli::cmd {
 
@@ -81,7 +82,7 @@ class RagCommand : public CommandBase {
   private:
     auto run_rag() -> int {
         wcppcli::WConf conf;
-        conf.read_file(".env");
+        ragcli::utils::load_config(conf);
 
         // 설정 우선순위: CLI 플래그 > 환경 변수 > 코드 기본값
         rag::RagCliOverrides overrides{llm_url_,    model_,      embed_model_,

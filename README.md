@@ -29,8 +29,10 @@ ppm install wkqco33/ragcli
 - **PDF 요약 (pdf)**: PDF 파일의 텍스트를 추출하여 LLM으로 핵심 내용을 요약 정리합니다. Qdrant 없이 단독으로 동작합니다.
 - **이미지 OCR + 요약 (ocr)**: 영수증, 문서 스캔 등 이미지의 텍스트를 Vision LLM으로 추출(OCR)하고 핵심 내용을 요약 정리합니다. Qdrant 없이 단독으로 동작합니다.
 - **스트리밍 응답**: `chat`과 `rag -q` 모두 답변을 토큰 단위로 즉시 화면에 출력해 응답을 기다리는 체감 시간을 줄입니다.
-- **견고한 에러 핸들링 & 최상위 예외 관리**: 글로벌 Exception Handler, CPR 네트워크 및 JSON 파싱 유효성 검증 강화.
-- **환경 설정 우선순위**: CLI 플래그 > 환경 변수 (`.env`) > 코드 기본값 순서로 설정을 유연하게 적용합니다.
+- **설정 관리 (config)**: `config.yaml` / `.env` 파일의 조회, 초기화(`init`), 값 설정(`set`), 경로 확인(`path`) 서브커맨드 지원.
+- **계층적 환경 설정 우선순위**: CLI 플래그 > 현재 디렉터리(CWD) 설정 (`config.yaml`/`.env`) > 전역 사용자 설정 (`~/.config/ragcli/config.yaml`) > 코드 기본값 순서로 설정을 오버라이드합니다.
+
+> 💡 **개발 및 TDD 가이드**: 다른 에이전트나 개발자는 [DEVELOPMENT.md](DEVELOPMENT.md)를 참고하세요.
 
 ---
 
@@ -188,6 +190,33 @@ ragcli ocr -f ./documents/scan.png --provider openai -m gpt-4o -l en
 
 # 3) Ollama URL 및 모델 직접 지정
 ragcli ocr -f ./charts/table.jpg -m llava -u http://localhost:11434
+```
+
+---
+
+### 6. `config` (설정 관리)
+
+`config.yaml` 또는 `.env` 설정 파일의 조회, 기본 파일 생성, 설정값 수정 및 경로 확인을 관리합니다.
+
+| 서브커맨드 | 설명 |
+| :--- | :--- |
+| `ragcli config` | 현재 적용된 설정 파일의 전체 경로와 내용 출력 |
+| `ragcli config init` | OS 표준 설정 디렉터리(`~/.config/ragcli/config.yaml` 등)에 기본 설정 파일 생성 |
+| `ragcli config set KEY VALUE` | 지정한 키의 설정값을 파일에 업데이트/추가 |
+| `ragcli config path` | 활성화된 설정 파일의 절대 경로 출력 |
+
+#### 사용 예시
+
+```bash
+# 1) 기본 설정 파일 생성
+ragcli config init
+
+# 2) 프로바이더 및 모델 설정
+ragcli config set LLM_PROVIDER ollama
+ragcli config set OLLAMA_MODEL gemma4:31b-cloud
+
+# 3) 현재 로드된 설정 확인
+ragcli config
 ```
 
 ---

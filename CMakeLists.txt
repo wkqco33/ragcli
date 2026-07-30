@@ -62,6 +62,11 @@ target_link_libraries(ragcli PRIVATE wcppcli)
 target_link_libraries(ragcli PRIVATE llm_client)
 target_link_libraries(ragcli PRIVATE cpppdf::cpppdf)
 
+find_package(fmt CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
+add_compile_definitions(SPDLOG_FMT_EXTERNAL)
+target_link_libraries(ragcli PRIVATE fmt::fmt spdlog::spdlog)
+
 find_package(JPEG)
 if(JPEG_FOUND)
   target_compile_definitions(ragcli PRIVATE CPPPDF_HAVE_JPEG)

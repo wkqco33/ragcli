@@ -3,7 +3,6 @@
 #include <iostream>
 #include <memory>
 #include <string>
-#include <wcppcli/wcli.hpp>
 #include <wcppcli/wconf.hpp>
 #include <wcppcli/wlog.hpp>
 
@@ -14,6 +13,7 @@
 #include "llm/provider_config.hpp"
 #include "llm_client/llm_client_factory.hpp"
 #include "rag/llm_port.hpp"
+#include "utils/config_path.hpp"
 
 namespace ragcli::cmd {
 
@@ -52,7 +52,7 @@ class PdfSummarizeCommand : public CommandBase {
         }
 
         wcppcli::WConf conf;
-        conf.read_file(".env");
+        ragcli::utils::load_config(conf);
 
         // LLM 프로바이더 설정 해석 (chat 커맨드와 동일한 방식)
         llm::ProviderOverrides overrides{&provider_, &base_url_, &model_, nullptr};

@@ -1,0 +1,42 @@
+# ragcli 설정 예제. 이 파일을 config.yaml 로 복사하여 사용하세요.
+#
+# 설정 파일 탐색 순서:
+#   1) 플랫폼 설정 디렉토리의 config.yaml
+#   2) 플랫폼 설정 디렉토리의 .env
+#   3) CWD의 config.yaml
+#   4) CWD의 .env
+#
+# 플랫폼별 설정 디렉토리:
+#   Linux:   ~/.config/ragcli/
+#   macOS:   ~/Library/Application Support/ragcli/
+#   Windows: %APPDATA%\ragcli\
+
+# LLM 프로바이더: ollama (기본), openai, azure
+LLM_PROVIDER: ollama
+
+# Ollama 설정 (LLM_PROVIDER=ollama 일 때 사용, 로컬 Ollama 는 API 키 불필요)
+OLLAMA_BASE_URL: "http://localhost:11434"
+OLLAMA_MODEL: llama3
+OLLAMA_EMBED_MODEL: nomic-embed-text
+
+# OpenAI 설정 (LLM_PROVIDER=openai 일 때 사용)
+OPENAI_API_KEY: "your_openai_api_key_here"
+# OPENAI_BASE_URL: "https://api.openai.com/v1"
+# OPENAI_MODEL: gpt-4o-mini
+# OPENAI_EMBED_MODEL: text-embedding-3-small
+
+# Azure OpenAI 설정 (LLM_PROVIDER=azure 일 때 사용)
+AZURE_OPENAI_API_KEY: "your_azure_openai_api_key_here"
+AZURE_OPENAI_BASE_URL: "https://your-resource-name.openai.azure.com/"
+AZURE_OPENAI_MODEL: your-chat-deployment-name
+AZURE_OPENAI_EMBED_MODEL: your-embedding-deployment-name
+# AZURE_OPENAI_API_VERSION: "2024-02-15-preview"
+
+# Qdrant 설정 (ragcli rag 용, Qdrant REST API)
+QDRANT_BASE_URL: "http://localhost:6333"
+QDRANT_COLLECTION: documents
+# QDRANT_DISTANCE: Cosine   # Cosine (기본) | Euclid | Dot | Manhattan
+
+# 청킹 설정 (ragcli rag 인덱싱 시 문자 단위)
+# CHUNK_SIZE: 512
+# CHUNK_OVERLAP: 64

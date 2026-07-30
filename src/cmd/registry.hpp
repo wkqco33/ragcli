@@ -6,6 +6,7 @@
 
 #include "chat.hpp"
 #include "collection.hpp"
+#include "config.hpp"
 #include "command.hpp"
 #include "ocr.hpp"
 #include "pdf_summarize.hpp"
@@ -24,6 +25,7 @@ inline auto register_commands(wcppcli::Command &root) -> std::vector<std::unique
     holders.emplace_back(std::make_unique<CollectionCommand>());
     holders.emplace_back(std::make_unique<PdfSummarizeCommand>());
     holders.emplace_back(std::make_unique<OcrCommand>());
+    holders.emplace_back(std::make_unique<ConfigCommand>());
 
     for (auto &cmd : holders) {
         cmd->register_to(root);
