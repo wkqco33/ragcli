@@ -1,8 +1,9 @@
 name: Release
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 permissions:
@@ -146,13 +147,13 @@ jobs:
           Compress-Archive -Path "ragcli.exe" -DestinationPath "dist/ragcli_windows_amd64.zip" -Force
 
       - name: Upload release assets
-        if: github.event_name == 'release'
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
 
       - name: Upload workflow artifacts
-        if: github.event_name != 'release'
+        if: "!startsWith(github.ref, 'refs/tags/v')"
         uses: actions/upload-artifact@v4
         with:
           name: ragcli-${{ matrix.platform }}-${{ matrix.arch }}
