@@ -109,6 +109,15 @@ jobs:
           git clone https://github.com/microsoft/vcpkg.git "$env:USERPROFILE\vcpkg"
           & "$env:USERPROFILE\vcpkg\bootstrap-vcpkg.bat"
           "VCPKG_ROOT=$env:USERPROFILE\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          # CMake picks up MinGW g++ from PATH on windows-latest (no MSVC dev
+          # shell is configured here), so vcpkg must build its C++ deps
+          # (cpr/spdlog/fmt/curl) with the same MinGW toolchain and ABI.
+          # Otherwise MSVC-mangled symbols from the default x64-windows
+          # triplet fail to link against GCC-mangled object files. Static
+          # linkage also matches the release packaging step, which ships a
+          # single ragcli.exe with no accompanying DLLs.
+          "VCPKG_DEFAULT_TRIPLET=x64-mingw-static" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "VCPKG_DEFAULT_HOST_TRIPLET=x64-mingw-static" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Configure
         run: cmake --preset release

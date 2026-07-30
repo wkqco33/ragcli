@@ -80,3 +80,10 @@ if (MSVC)
 else()
   target_compile_options(ragcli PRIVATE -Wall -Wextra -Wpedantic)
 endif()
+
+if (MINGW)
+  # Release packaging ships a single ragcli.exe with no accompanying DLLs, so
+  # the MinGW runtime (libstdc++/libgcc/winpthread) must be linked statically
+  # rather than assuming it's present on the target machine.
+  target_link_options(ragcli PRIVATE -static-libgcc -static-libstdc++ -static)
+endif()
