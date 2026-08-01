@@ -46,7 +46,7 @@ class QdrantClient {
         wcppcli::WLog::info("Deleted Qdrant collection '" + collection_name_ + "'");
     }
 
-    // 컬렉션을 생성한다 (이미 존재하면 Qdrant 가 OK 를 반환).
+    // 컬렉션을 생성한다 (이미 존재할 경우 409 Conflict 또는 already exists 응답 처리).
     auto create_collection(int vector_size, const std::string &distance = "Cosine") const -> void {
         const std::string url = base_url_ + "/collections/" + collection_name_;
         json req;
@@ -55,6 +55,12 @@ class QdrantClient {
 
         cpr::Header headers{{"Content-Type", "application/json"}};
         cpr::Response response = cpr::Put(cpr::Url{url}, headers, cpr::Body{req.dump()});
+
+        if (response.status_code == 409 ||
+            (response.status_code == 400 && response.text.find("already exists") != std::string::npos)) {
+            wcppcli::WLog::info("Qdrant collection '" + collection_name_ + "' already exists");
+            return;
+        }
 
         verify_response(response, "Qdrant create collection failed");
         wcppcli::WLog::info("Created Qdrant collection '" + collection_name_ + "' with size " +

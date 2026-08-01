@@ -7,7 +7,9 @@
 #include <vector>
 #include <wcppcli/wlog.hpp>
 
+#include <chrono>
 #include <future>
+#include <thread>
 
 #include "chunking/chunk.hpp"
 #include "chunking/chunker_interface.hpp"
@@ -89,6 +91,27 @@ class Indexer {
     }
 
   private:
+    auto embed_with_retry(const std::vector<std::string> &texts, const std::string &model) const
+        -> std::vector<std::vector<float>> {
+        constexpr int k_max_retries = 3;
+        for (int attempt = 1; attempt <= k_max_retries; ++attempt) {
+            try {
+                auto res = embed_provider_->embed(texts, model);
+                if (!res.empty()) {
+                    return res;
+                }
+            } catch (const std::exception &e) {
+                wcppcli::WLog::warn("Embed request failed (attempt " + std::to_string(attempt) +
+                                    "/" + std::to_string(k_max_retries) + "): " + e.what());
+                if (attempt == k_max_retries) {
+                    throw;
+                }
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(500 * attempt));
+        }
+        return {};
+    }
+
     auto embed_chunks(const std::vector<chunking::Chunk> &chunks,
                       const std::string &model) const -> std::vector<std::vector<float>> {
         if (chunks.empty()) {
@@ -96,6 +119,7 @@ class Indexer {
         }
 
         constexpr std::size_t k_batch_size = 16;
+        constexpr std::size_t k_max_concurrent_batches = 4;
         const std::size_t total_chunks = chunks.size();
 
         if (total_chunks <= k_batch_size) {
@@ -104,36 +128,41 @@ class Indexer {
             for (const auto &chunk : chunks) {
                 texts.push_back(chunk.text);
             }
-            return embed_provider_->embed(texts, model);
+            return embed_with_retry(texts, model);
         }
 
         std::size_t num_batches = (total_chunks + k_batch_size - 1) / k_batch_size;
-        std::vector<std::future<std::vector<std::vector<float>>>> futures;
-        futures.reserve(num_batches);
+        std::vector<std::vector<float>> all_embeddings(total_chunks);
 
-        for (std::size_t b = 0; b < num_batches; ++b) {
-            std::size_t start = b * k_batch_size;
-            std::size_t end = (std::min)(start + k_batch_size, total_chunks);
+        for (std::size_t b_start = 0; b_start < num_batches; b_start += k_max_concurrent_batches) {
+            std::size_t b_end = (std::min)(b_start + k_max_concurrent_batches, num_batches);
+            std::vector<std::future<std::pair<std::size_t, std::vector<std::vector<float>>>>> futures;
 
-            std::vector<std::string> batch_texts;
-            batch_texts.reserve(end - start);
-            for (std::size_t i = start; i < end; ++i) {
-                batch_texts.push_back(chunks[i].text);
+            for (std::size_t b = b_start; b < b_end; ++b) {
+                std::size_t start = b * k_batch_size;
+                std::size_t end = (std::min)(start + k_batch_size, total_chunks);
+
+                std::vector<std::string> batch_texts;
+                batch_texts.reserve(end - start);
+                for (std::size_t i = start; i < end; ++i) {
+                    batch_texts.push_back(chunks[i].text);
+                }
+
+                futures.push_back(
+                    std::async(std::launch::async, [this, start, texts = std::move(batch_texts), model]() {
+                        return std::make_pair(start, embed_with_retry(texts, model));
+                    }));
             }
 
-            futures.push_back(
-                std::async(std::launch::async, [this, texts = std::move(batch_texts), model]() {
-                    return embed_provider_->embed(texts, model);
-                }));
-        }
-
-        std::vector<std::vector<float>> all_embeddings;
-        all_embeddings.reserve(total_chunks);
-
-        for (auto &fut : futures) {
-            auto batch_res = fut.get();
-            for (auto &emb : batch_res) {
-                all_embeddings.push_back(std::move(emb));
+            for (auto &fut : futures) {
+                auto [start_idx, batch_res] = fut.get();
+                if (batch_res.size() != (std::min)(k_batch_size, total_chunks - start_idx)) {
+                    wcppcli::WLog::error("Batch embedding returned incorrect size");
+                    return {};
+                }
+                for (std::size_t i = 0; i < batch_res.size(); ++i) {
+                    all_embeddings[start_idx + i] = std::move(batch_res[i]);
+                }
             }
         }
 
