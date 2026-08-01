@@ -66,7 +66,7 @@ class SimpleChunker : public Chunker {
             std::size_t start = 0;
 
             while (start < total) {
-                std::size_t end = std::min(start + chunk_size_, total);
+                std::size_t end = (std::min)(start + chunk_size_, total);
 
                 // 단어 경계에서 자르도록 조정.
                 if (end < total) {

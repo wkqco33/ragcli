@@ -110,7 +110,7 @@ class Indexer {
 
         for (std::size_t b = 0; b < num_batches; ++b) {
             std::size_t start = b * k_batch_size;
-            std::size_t end = std::min(start + k_batch_size, total_chunks);
+            std::size_t end = (std::min)(start + k_batch_size, total_chunks);
 
             std::vector<std::string> batch_texts;
             batch_texts.reserve(end - start);
