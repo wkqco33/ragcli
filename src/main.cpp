@@ -1,5 +1,6 @@
 #include <exception>
 #include <string>
+#include <vector>
 #include <wcppcli/wcli.hpp>
 #include <wcppcli/wlog.hpp>
 
@@ -7,6 +8,7 @@
 
 #if defined(_WIN32)
 #  include <windows.h>
+#  include <shellapi.h>
 #endif
 
 namespace {
@@ -32,6 +34,36 @@ auto main(int argc, char **argv) -> int {
         // main 의 지역 변수로 들고 있는다.
         auto holders = ragcli::cmd::register_commands(root);
 
+#if defined(_WIN32)
+        int wide_argc = 0;
+        LPWSTR *wide_argv = CommandLineToArgvW(GetCommandLineW(), &wide_argc);
+        if (wide_argv != nullptr) {
+            std::vector<std::string> utf8_args;
+            utf8_args.reserve(wide_argc);
+            std::vector<char *> utf8_argv;
+            utf8_argv.reserve(wide_argc + 1);
+
+            for (int i = 0; i < wide_argc; ++i) {
+                int size_needed = WideCharToMultiByte(CP_UTF8, 0, wide_argv[i], -1, nullptr, 0, nullptr, nullptr);
+                if (size_needed > 1) {
+                    std::string u8str(size_needed - 1, '\0');
+                    WideCharToMultiByte(CP_UTF8, 0, wide_argv[i], -1, u8str.data(), size_needed, nullptr, nullptr);
+                    utf8_args.push_back(std::move(u8str));
+                } else {
+                    utf8_args.push_back("");
+                }
+            }
+            LocalFree(wide_argv);
+
+            for (auto &s : utf8_args) {
+                utf8_argv.push_back(s.data());
+            }
+            utf8_argv.push_back(nullptr);
+
+            return root.execute(static_cast<int>(utf8_args.size()), utf8_argv.data());
+        }
+#endif
+
         return root.execute(argc, argv);
     } catch (const std::exception &e) {
         wcppcli::WLog::error(std::string("Fatal Error: ") + e.what());
@@ -41,3 +73,4 @@ auto main(int argc, char **argv) -> int {
         return 1;
     }
 }
+

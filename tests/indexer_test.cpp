@@ -151,7 +151,7 @@ TEST(Indexer, SimpleChunkerSplitsLongText) {
 }
 
 TEST(ImageFileSource, DecodesPpmImage) {
-    const std::string ppm_path = "/tmp/ragcli_test_image.ppm";
+    const std::string ppm_path = (std::filesystem::temp_directory_path() / "ragcli_test_image.ppm").string();
     {
         std::ofstream ppm(ppm_path, std::ios::binary);
         // 2x2 RGB 이미지 (P6 binary PPM)
@@ -179,11 +179,14 @@ TEST(ImageFileSource, DecodesPpmImage) {
     EXPECT_EQ(pages[0].image_height, 2);
     EXPECT_EQ(pages[0].image.size(), 16U); // 2 * 2 * 4
     EXPECT_TRUE(pages[0].is_image);
+
+    std::filesystem::remove(ppm_path);
 }
 
 TEST(ImageFileSource, ThrowsOnMissingFile) {
+    const std::string missing_path = (std::filesystem::temp_directory_path() / "ragcli_nonexistent.png").string();
     auto source =
-        std::make_shared<ragcli::document::ImageFileSource>("/tmp/ragcli_nonexistent.png");
+        std::make_shared<ragcli::document::ImageFileSource>(missing_path);
     EXPECT_THROW(source->extract(), std::runtime_error);
 }
 
