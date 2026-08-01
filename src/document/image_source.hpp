@@ -43,6 +43,7 @@ class ImageFileSource : public DocumentSource {
         ExtractedPage page;
         page.title = std::filesystem::path(path_).filename().string();
         page.text = "[Image] " + path_;
+        page.source_path = path_;
         page.image.assign(pixels, pixels + pixel_count);
         page.image_width = width;
         page.image_height = height;

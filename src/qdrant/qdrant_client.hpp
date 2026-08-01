@@ -63,6 +63,12 @@ class QdrantClient {
 
     struct SearchResultItem {
         std::string text;
+        std::string title;
+        std::string source;
+        std::string heading_path;
+        int page_index = 0;
+        int chunk_index = 0;
+        int chunk_total = 0;
         double score = 0.0;
         bool is_image = false;
         std::string image_base64;
@@ -84,14 +90,48 @@ class QdrantClient {
             parse_json_safely(JsonText{response.text}, JsonContext{"Qdrant search response"}));
     }
 
+    // 같은 source 안에서 chunk_index 가 [min_index, max_index] 범위인 포인트를 모두 가져온다.
+    // 검색 히트 주변의 이웃 청크를 붙여 문맥을 넓히는 용도.
+    [[nodiscard]] auto scroll_by_chunk_range(const std::string &source, int min_index,
+                                             int max_index) const -> std::vector<SearchResultItem> {
+        if (source.empty() || min_index > max_index) {
+            return {};
+        }
+
+        const std::string url = base_url_ + "/collections/" + collection_name_ + "/points/scroll";
+        json req;
+        req["filter"]["must"] = json::array({json{{"key", "source"}, {"match", {{"value", source}}}},
+                                              json{{"key", "chunk_index"},
+                                                   {"range", {{"gte", min_index}, {"lte", max_index}}}}});
+        req["with_payload"] = true;
+        req["limit"] = max_index - min_index + 1;
+
+        cpr::Header headers{{"Content-Type", "application/json"}};
+        cpr::Response response = cpr::Post(cpr::Url{url}, headers, cpr::Body{req.dump()});
+        verify_response(response, "Qdrant scroll failed");
+
+        json res = parse_json_safely(JsonText{response.text}, JsonContext{"Qdrant scroll response"});
+        std::vector<SearchResultItem> results;
+        if (!res.contains("result") || !res["result"].contains("points") ||
+            !res["result"]["points"].is_array()) {
+            return results;
+        }
+        for (const auto &item : res["result"]["points"]) {
+            results.push_back(parse_result_item(item));
+        }
+        return results;
+    }
+
     struct PointData {
         std::string content;
         std::string title;
-        std::string source;      // 출처 파일 경로
-        std::string source_type; // ragcli_add / ragcli_index 등
-        int page_index = 0;      // 페이지 번호
-        int chunk_index = 0;     // 청크 번호
-        bool is_image = false;   // 이미지 콘텐츠 여부
+        std::string source;       // 출처 파일 경로
+        std::string source_type;  // ragcli_add / ragcli_index 등
+        std::string heading_path; // 마크다운 헤딩 계층 경로 (없으면 빈 문자열)
+        int page_index = 0;       // 페이지 번호
+        int chunk_index = 0;      // 청크 번호
+        int chunk_total = 0;      // 같은 소스 내 총 청크 수
+        bool is_image = false;    // 이미지 콘텐츠 여부
         int image_width = 0;
         int image_height = 0;
         std::string image_base64;
@@ -117,11 +157,14 @@ class QdrantClient {
         if (!data.source_type.empty()) {
             payload["source_type"] = data.source_type;
         }
-        if (data.page_index > 0) {
-            payload["page_index"] = data.page_index;
+        if (!data.heading_path.empty()) {
+            payload["heading_path"] = data.heading_path;
         }
-        if (data.chunk_index > 0) {
-            payload["chunk_index"] = data.chunk_index;
+        // page_index/chunk_index 는 0 이 유효한 값(첫 페이지/첫 청크)이므로 항상 기록한다.
+        payload["page_index"] = data.page_index;
+        payload["chunk_index"] = data.chunk_index;
+        if (data.chunk_total > 0) {
+            payload["chunk_total"] = data.chunk_total;
         }
         if (data.is_image) {
             payload["is_image"] = true;
@@ -203,47 +246,56 @@ class QdrantClient {
         results.reserve(res["result"].size());
 
         for (const auto &item : res["result"]) {
-            std::string text = extract_text_from_item(item);
-            if (text.empty()) {
+            SearchResultItem sitem = parse_result_item(item);
+            if (sitem.text.empty()) {
                 continue;
             }
-
-            SearchResultItem sitem;
-            sitem.text = std::move(text);
             sitem.score = extract_score_from_item(item);
-
-            if (item.contains("payload") && item["payload"].is_object()) {
-                const auto &payload = item["payload"];
-                if (payload.contains("is_image") && payload["is_image"].is_boolean()) {
-                    sitem.is_image = payload["is_image"].get<bool>();
-                }
-                if (payload.contains("image_base64") && payload["image_base64"].is_string()) {
-                    sitem.image_base64 = payload["image_base64"].get<std::string>();
-                }
-            }
-
             results.push_back(std::move(sitem));
         }
 
         return results;
     }
 
+    // 검색/스크롤 결과 항목 하나를 SearchResultItem 으로 변환한다 (score 는 제외 —
+    // 스크롤 결과는 벡터 유사도 점수가 없으므로 호출자가 필요 시 채운다).
+    static auto parse_result_item(const json &item) -> SearchResultItem {
+        SearchResultItem sitem;
+        sitem.text = extract_text_from_item(item);
+        if (!item.contains("payload") || !item["payload"].is_object()) {
+            return sitem;
+        }
+
+        const auto &payload = item["payload"];
+        sitem.title = extract_string_field(payload, "title");
+        sitem.source = extract_string_field(payload, "source");
+        sitem.heading_path = extract_string_field(payload, "heading_path");
+        sitem.page_index = extract_int_field(payload, "page_index");
+        sitem.chunk_index = extract_int_field(payload, "chunk_index");
+        sitem.chunk_total = extract_int_field(payload, "chunk_total");
+        if (payload.contains("is_image") && payload["is_image"].is_boolean()) {
+            sitem.is_image = payload["is_image"].get<bool>();
+        }
+        if (payload.contains("image_base64") && payload["image_base64"].is_string()) {
+            sitem.image_base64 = payload["image_base64"].get<std::string>();
+        }
+        return sitem;
+    }
+
+    // payload 의 본문(content/text/document/body)을 우선 반환하고, 없으면 title 로 폴백한다.
+    // (과거에는 "[제목] ...\n[내용] ..." 형태로 합성했으나, 그러면 프롬프트에서 각
+    // 조각의 구조를 활용할 수 없어 title 은 SearchHit 의 별도 필드로 분리했다.)
     static auto extract_text_from_item(const json &item) -> std::string {
         if (!item.contains("payload") || !item["payload"].is_object()) {
             return {};
         }
 
         const auto &payload = item["payload"];
-        std::string title = extract_string_field(payload, "title");
         std::string body = extract_body_field(payload);
-
-        if (!title.empty() && !body.empty()) {
-            return "[제목] " + std::move(title) + "\n[내용] " + std::move(body);
-        }
         if (!body.empty()) {
             return body;
         }
-        return title;
+        return extract_string_field(payload, "title");
     }
 
     static auto extract_body_field(const json &payload) -> std::string {
@@ -261,6 +313,13 @@ class QdrantClient {
             return obj[key].get<std::string>();
         }
         return {};
+    }
+
+    static auto extract_int_field(const json &obj, const char *key) -> int {
+        if (obj.contains(key) && obj[key].is_number_integer()) {
+            return obj[key].get<int>();
+        }
+        return 0;
     }
 
     static auto extract_score_from_item(const json &item) -> double {

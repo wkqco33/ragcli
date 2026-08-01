@@ -40,3 +40,16 @@ QDRANT_COLLECTION: documents
 # 청킹 설정 (ragcli rag 인덱싱 시 문자 단위)
 # CHUNK_SIZE: 512
 # CHUNK_OVERLAP: 64
+
+# ragcli rag -q 질의 시 검색 히트마다 앞뒤로 가져올 이웃 청크 개수. 0 이면 비활성화(기본값).
+# 확장할수록 프롬프트 토큰이 대략 (1+2N)배로 늘어나지만 히트 주변 문맥이 넓어진다.
+# EXPAND_NEIGHBORS: 0
+
+# ragcli rag -q 검색 결과 리랭킹. lexical(기본) | none.
+# lexical 은 Qdrant 에서 후보를 top-k 보다 넓게 가져온 뒤 로컬 BM25 키워드 점수와
+# 벡터 순위를 RRF(Reciprocal Rank Fusion)로 융합해 재정렬한다. 추가 네트워크/LLM
+# 호출 없이 순수 로컬 연산이며, 임베딩이 놓치기 쉬운 정확한 키워드/고유명사 질문에 특히 유리하다.
+# RERANK_MODE: lexical
+
+# 리랭킹 전 Qdrant 에서 가져올 후보 개수. 0 이면 자동으로 max(top_k * 4, 20).
+# RERANK_CANDIDATES: 0

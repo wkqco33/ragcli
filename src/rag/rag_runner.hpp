@@ -1,9 +1,8 @@
 #pragma once
 
-#include <fstream>
+#include <algorithm>
 #include <iostream>
 #include <memory>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -12,6 +11,8 @@
 #include <wcppcli/wlog.hpp>
 
 #include "llm/provider_config.hpp"
+#include "rag/hit_postprocess.hpp"
+#include "rag/lexical_search.hpp"
 #include "rag/llm_port.hpp"
 #include "rag/prompt_builder.hpp"
 #include "rag/qdrant_port.hpp"
@@ -37,16 +38,21 @@ class RagRunner {
         : llm_port_(std::move(llm_port)), qdrant_port_(std::move(qdrant_port)) {}
 
     struct AddInput {
-        std::string text;      // --add 로 직접 입력한 텍스트
-        std::string file_path; // --file 로 지정한 파일 경로
-        std::string title;     // --title 로 지정한 제목
+        std::string text;  // --add 로 직접 입력한 텍스트
+        std::string title; // --title 로 지정한 제목
     };
 
     struct QueryInput {
         std::string query;
         int top_k = 0;
         std::string score_threshold_str;
+        int expand_neighbors = 0;       // 히트당 앞뒤로 확장할 이웃 청크 개수 (0=비활성)
+        std::string rerank_mode = "lexical"; // "none" | "lexical"
+        int rerank_candidates = 0;      // 0=자동(top_k*4, 최소 20)
     };
+
+    static constexpr int k_rerank_candidate_multiplier = 4;
+    static constexpr int k_rerank_min_candidates = 20;
 
     // CLI 플래그 > 환경 변수 > 코드 기본값 순으로 최종 설정을 결정한다.
     static auto resolve_targets(const RagCliOverrides &overrides,
@@ -92,13 +98,9 @@ class RagRunner {
         }
     }
 
-    // 지식 추가 모드를 실행한다.
+    // 지식 추가 모드를 실행한다 (짧은 텍스트를 청킹 없이 단일 포인트로 저장).
     auto add_knowledge(const AddInput &input, const RagTargets &targets) const -> int {
-        std::string content_to_add = input.text;
-
-        if (!input.file_path.empty()) {
-            content_to_add = read_file_content(input.file_path);
-        }
+        const std::string &content_to_add = input.text;
 
         if (content_to_add.empty()) {
             wcppcli::WLog::error("Content to add is empty.");
@@ -118,9 +120,13 @@ class RagRunner {
                 return 1;
             }
 
-            qdrant_port_->upsert_point(
-                embed_res.embeddings[0],
-                {content_to_add, input.title, "", "ragcli_add", 0, 0, false, 0, 0, ""});
+            UpsertPoint point;
+            point.content = content_to_add;
+            point.title = input.title;
+            point.source_type = "ragcli_add";
+            point.chunk_index = 0;
+            point.chunk_total = 1;
+            qdrant_port_->upsert_point(embed_res.embeddings[0], point);
             wcppcli::WLog::success("Successfully added knowledge to Qdrant collection '" +
                                    targets.collection + "'.");
         } catch (const std::exception &e) {
@@ -133,7 +139,7 @@ class RagRunner {
 
     // RAG 질의 모드를 실행한다.
     auto query_rag(const QueryInput &input, const RagTargets &targets) const -> int {
-        int target_top_k = input.top_k > 0 ? input.top_k : 3;
+        int target_top_k = input.top_k > 0 ? input.top_k : 5;
         double target_score_threshold = parse_score_threshold(input.score_threshold_str);
 
         try {
@@ -148,9 +154,25 @@ class RagRunner {
             wcppcli::WLog::info("Query embedding dimension: " +
                                 std::to_string(embed_res.embeddings[0].size()));
 
-            // 2) Qdrant 검색
-            auto hits =
-                qdrant_port_->search(embed_res.embeddings[0], target_top_k, target_score_threshold);
+            // 2) Qdrant 검색 (lexical 리랭크 시 후보를 top_k 보다 넓게 가져온다)
+            const bool use_lexical_rerank = input.rerank_mode == "lexical";
+            const int candidate_limit =
+                use_lexical_rerank
+                    ? (input.rerank_candidates > 0
+                           ? input.rerank_candidates
+                           : (std::max)(target_top_k * k_rerank_candidate_multiplier,
+                                        k_rerank_min_candidates))
+                    : target_top_k;
+
+            auto hits = qdrant_port_->search(embed_res.embeddings[0], candidate_limit,
+                                             target_score_threshold);
+
+            // 3) 리랭크(BM25+RRF 융합) 후 top_k 로 정리, 이웃 청크 확장, 인접 청크 병합
+            if (use_lexical_rerank) {
+                hits = rerank_lexical(hits, input.query, target_top_k);
+            }
+            hits = expand_neighbors(hits, *qdrant_port_, input.expand_neighbors);
+            hits = merge_adjacent(std::move(hits));
 
             if (hits.empty()) {
                 wcppcli::WLog::warn("No relevant documents found in Qdrant");
@@ -209,16 +231,6 @@ class RagRunner {
   private:
     std::shared_ptr<LlmPort> llm_port_;
     std::shared_ptr<QdrantPort> qdrant_port_;
-
-    static auto read_file_content(const std::string &file_path) -> std::string {
-        std::ifstream file(file_path);
-        if (!file.is_open()) {
-            throw std::runtime_error("Failed to open file: " + file_path);
-        }
-        std::ostringstream buffer_stream;
-        buffer_stream << file.rdbuf();
-        return buffer_stream.str();
-    }
 };
 
 } // namespace ragcli::rag

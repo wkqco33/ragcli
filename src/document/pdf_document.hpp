@@ -72,6 +72,7 @@ class PdfFileSource : public DocumentSource {
         ExtractedPage text_page;
         text_page.page_index = page_index + 1;
         text_page.title = path_ + "#page=" + std::to_string(text_page.page_index);
+        text_page.source_path = path_;
 
         auto text_blocks =
             cpppdf::extract_text(&const_cast<cpppdf::PdfDocument &>(doc), page_index);
@@ -91,6 +92,7 @@ class PdfFileSource : public DocumentSource {
             image_page.image_width = img.width;
             image_page.image_height = img.height;
             image_page.is_image = true;
+            image_page.source_path = path_;
             pages.push_back(std::move(image_page));
         }
 

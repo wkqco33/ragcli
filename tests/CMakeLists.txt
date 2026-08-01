@@ -23,6 +23,9 @@ add_executable(ragcli_tests
   collection_test.cpp
   pdf_document_test.cpp
   indexer_test.cpp
+  chunking_test.cpp
+  prompt_test.cpp
+  lexical_search_test.cpp
   ../src/utils/stb_image_impl.cpp
 )
 target_include_directories(ragcli_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src ${CMAKE_CURRENT_SOURCE_DIR})

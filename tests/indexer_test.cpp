@@ -103,6 +103,32 @@ TEST(Indexer, EmptyEmbeddingReturnsError) {
     EXPECT_TRUE(qdrant_port->last_data_.empty());
 }
 
+TEST(Indexer, PropagatesFileSourcePathAndChunkZeroIndexFromDirectoryIndexing) {
+    ragcli::document::ExtractedPage page;
+    page.text = "short content that stays as a single chunk";
+    page.title = "file.txt";
+    page.source_path = "kb/file.txt"; // 디렉터리 인덱싱 시 실제 파일 경로 (source_name 은 디렉터리)
+    std::vector<ragcli::document::ExtractedPage> pages{page};
+
+    auto source = std::make_shared<MockDocumentSource>(pages, "kb");
+    auto embed_provider = std::make_shared<MockEmbeddingProvider>();
+    auto qdrant_port = std::make_shared<MockQdrantPort>();
+    auto chunker = std::make_shared<ragcli::chunking::NoChunker>();
+
+    ragcli::indexing::Indexer indexer(embed_provider, qdrant_port, chunker);
+
+    ragcli::indexing::IndexOptions options;
+    options.embed_model = "mock-model";
+
+    const int exit_code = indexer.index(source, options);
+
+    EXPECT_EQ(exit_code, 0);
+    ASSERT_EQ(qdrant_port->last_data_.size(), 1U);
+    EXPECT_EQ(qdrant_port->last_data_[0].chunk_index, 0);   // 0번 청크도 순서 정보가 전달되어야 함
+    EXPECT_EQ(qdrant_port->last_data_[0].source, "kb/file.txt"); // 디렉터리가 아니라 파일 경로
+    EXPECT_EQ(qdrant_port->last_data_[0].chunk_total, 1);
+}
+
 TEST(Indexer, SimpleChunkerSplitsLongText) {
     std::vector<ragcli::document::ExtractedPage> pages;
     pages.push_back({std::string(k_long_text_length, 'a'), "long.txt", 0, {}, 0, 0});
@@ -159,18 +185,6 @@ TEST(ImageFileSource, ThrowsOnMissingFile) {
     auto source =
         std::make_shared<ragcli::document::ImageFileSource>("/tmp/ragcli_nonexistent.png");
     EXPECT_THROW(source->extract(), std::runtime_error);
-}
-
-TEST(MarkdownChunker, SplitsByHeadings) {
-    std::vector<ragcli::document::ExtractedPage> pages;
-    pages.push_back({"# Section 1\nContent 1\n## Section 2\nContent 2\n", "doc.md", 0, {}, 0, 0});
-
-    ragcli::chunking::MarkdownChunker chunker;
-    auto chunks = chunker.chunk(pages, "doc.md");
-
-    ASSERT_EQ(chunks.size(), 2U);
-    EXPECT_EQ(chunks[0].title, "Section 1");
-    EXPECT_EQ(chunks[1].title, "Section 2");
 }
 
 TEST(NoChunker, PassesThroughOnePageToOneChunkWithImageData) {

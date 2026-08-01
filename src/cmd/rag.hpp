@@ -4,6 +4,7 @@
 #include <wcppcli/wcli.hpp>
 #include <wcppcli/wlog.hpp>
 
+#include "chunking/auto_chunker.hpp"
 #include "chunking/markdown_chunker.hpp"
 #include "chunking/no_chunker.hpp"
 #include "chunking/simple_chunker.hpp"
@@ -57,12 +58,25 @@ class RagCommand : public CommandBase {
                         &qdrant_url_);
         add_string_flag(*cmd, "collection", 'c', "Qdrant collection name (default: documents)",
                         &collection_);
-        add_int_flag(*cmd, "top-k", 'k', "Number of retrieved chunks (default: 3)", &top_k_);
+        add_int_flag(*cmd, "top-k", 'k', "Number of retrieved chunks (default: 5)", &top_k_);
         add_string_flag(*cmd, "score-threshold", 0,
                         "Minimum Qdrant search score 0.0~1.0 (default: 0.0 = disabled)",
                         &score_threshold_str_);
+        add_int_flag(*cmd, "expand-neighbors", 0,
+                     "Number of neighboring chunks (before/after) to pull in around each "
+                     "search hit (default: 0 = disabled)",
+                     &expand_neighbors_);
+        add_string_flag(*cmd, "rerank", 0,
+                        "Result reranking strategy: 'lexical' (default, BM25+RRF fusion over a "
+                        "widened candidate pool) or 'none'",
+                        &rerank_mode_);
+        add_int_flag(*cmd, "rerank-candidates", 0,
+                     "Number of candidates to fetch from Qdrant before lexical reranking "
+                     "(default: 0 = auto, top-k*4 with a floor of 20)",
+                     &rerank_candidates_);
         add_string_flag(*cmd, "chunker", 0,
-                        "Chunking strategy: 'simple' or 'markdown' (default: simple)",
+                        "Chunking strategy: 'auto' (default, picks markdown for .md files), "
+                        "'simple', or 'markdown'",
                         &chunker_type_);
         add_int_flag(*cmd, "chunk-size", 0,
                      "Simple chunker: chunk size in characters (default: 512)", &chunk_size_);
@@ -97,48 +111,73 @@ class RagCommand : public CommandBase {
             std::make_shared<ragcli::qdrant::QdrantClient>(targets.qdrant_url, targets.collection);
         auto qdrant_port = std::make_shared<rag::QdrantClientAdapter>(qdrant_client);
 
+        const int chunk_size =
+            rag::pick_first_positive_int(chunk_size_, conf.get_int("CHUNK_SIZE"),
+                                         static_cast<int>(chunking::k_default_chunk_size));
+        const int chunk_overlap =
+            rag::pick_first_positive_int(chunk_overlap_, conf.get_int("CHUNK_OVERLAP"),
+                                         static_cast<int>(chunking::k_default_overlap));
+        const chunking::ChunkSize size{static_cast<std::size_t>(chunk_size)};
+        const chunking::Overlap overlap{static_cast<std::size_t>(chunk_overlap)};
+
+        const std::string chunker_type = chunker_type_.empty() ? "auto" : chunker_type_;
         std::shared_ptr<chunking::Chunker> chunker;
-        if (chunker_type_ == "markdown") {
-            chunker = std::make_shared<chunking::MarkdownChunker>();
+        if (chunker_type == "auto") {
+            chunker = std::make_shared<chunking::AutoChunker>(size, overlap);
+        } else if (chunker_type == "markdown") {
+            chunker = std::make_shared<chunking::MarkdownChunker>(size, overlap);
+        } else if (chunker_type == "simple") {
+            chunker = std::make_shared<chunking::SimpleChunker>(size, overlap);
         } else {
-            const int chunk_size =
-                rag::pick_first_positive_int(chunk_size_, conf.get_int("CHUNK_SIZE"),
-                                             static_cast<int>(chunking::k_default_chunk_size));
-            const int chunk_overlap =
-                rag::pick_first_positive_int(chunk_overlap_, conf.get_int("CHUNK_OVERLAP"),
-                                             static_cast<int>(chunking::k_default_overlap));
-            chunker = std::make_shared<chunking::SimpleChunker>(
-                chunking::ChunkSize{static_cast<std::size_t>(chunk_size)},
-                chunking::Overlap{static_cast<std::size_t>(chunk_overlap)});
+            wcppcli::WLog::error("Unknown --chunker value: '" + chunker_type_ +
+                                 "' (expected 'auto', 'simple', or 'markdown')");
+            return 1;
         }
 
         const std::string distance =
             rag::pick_first({&distance_, conf.get_string("QDRANT_DISTANCE"), "Cosine"});
 
-        // 1) 인덱싱 모드: --pdf, --dir, --image
+        // 1) 인덱싱 모드: --pdf, --dir, --image, --file (모두 청킹을 거친다)
         if (!pdf_path_.empty()) {
             return run_index(document::create_source_from_path(pdf_path_), targets, llm_port,
-                             qdrant_port, chunker, distance);
+                             qdrant_port, chunker, distance, "");
         }
         if (!dir_path_.empty()) {
             return run_index(document::create_source_from_path(dir_path_), targets, llm_port,
-                             qdrant_port, chunker, distance);
+                             qdrant_port, chunker, distance, "");
         }
         if (!image_path_.empty()) {
             return run_index(document::create_source_from_path(image_path_), targets, llm_port,
-                             qdrant_port, std::make_shared<chunking::NoChunker>(), distance);
+                             qdrant_port, std::make_shared<chunking::NoChunker>(), distance, "");
+        }
+        if (!file_path_.empty()) {
+            return run_index(document::create_source_from_path(file_path_), targets, llm_port,
+                             qdrant_port, chunker, distance, title_);
         }
 
         rag::RagRunner runner(llm_port, qdrant_port);
 
-        // 2) 기존 단일 텍스트 지식 추가 모드 (-a / --add 또는 -f / --file)
-        if (!add_text_.empty() || !file_path_.empty()) {
-            return runner.add_knowledge({add_text_, file_path_, title_}, targets);
+        // 2) 직접 입력한 짧은 텍스트를 단일 지식으로 추가 (-a / --add)
+        if (!add_text_.empty()) {
+            return runner.add_knowledge({add_text_, title_}, targets);
         }
 
         // 3) 질문 모드 처리 (-q / --query)
         if (!query_.empty()) {
-            return runner.query_rag({query_, top_k_, score_threshold_str_}, targets);
+            const int expand_neighbors = rag::pick_first_positive_int(
+                expand_neighbors_, conf.get_int("EXPAND_NEIGHBORS"), 0);
+            const std::string rerank_mode =
+                rag::pick_first({&rerank_mode_, conf.get_string("RERANK_MODE"), "lexical"});
+            if (rerank_mode != "lexical" && rerank_mode != "none") {
+                wcppcli::WLog::error("Unknown --rerank value: '" + rerank_mode +
+                                     "' (expected 'lexical' or 'none')");
+                return 1;
+            }
+            const int rerank_candidates = rag::pick_first_positive_int(
+                rerank_candidates_, conf.get_int("RERANK_CANDIDATES"), 0);
+            return runner.query_rag({query_, top_k_, score_threshold_str_, expand_neighbors,
+                                     rerank_mode, rerank_candidates},
+                                    targets);
         }
 
         wcppcli::WLog::error(
@@ -150,8 +189,8 @@ class RagCommand : public CommandBase {
     static auto run_index(const std::shared_ptr<document::DocumentSource> &source,
                           const rag::RagTargets &targets, std::shared_ptr<rag::LlmPort> llm_port,
                           std::shared_ptr<rag::QdrantPort> qdrant_port,
-                          std::shared_ptr<chunking::Chunker> chunker,
-                          const std::string &distance) -> int {
+                          std::shared_ptr<chunking::Chunker> chunker, const std::string &distance,
+                          const std::string &title_override) -> int {
         auto embed_provider =
             std::make_shared<embedding::LlmEmbeddingProvider>(std::move(llm_port));
 
@@ -159,6 +198,7 @@ class RagCommand : public CommandBase {
         options.embed_model = targets.embed_model;
         options.source_type = "ragcli_index";
         options.distance = distance;
+        options.title_override = title_override;
 
         indexing::Indexer indexer(embed_provider, std::move(qdrant_port), std::move(chunker));
         return indexer.index(source, options);
@@ -180,9 +220,12 @@ class RagCommand : public CommandBase {
     std::string score_threshold_str_;
     std::string chunker_type_;
     std::string distance_;
+    std::string rerank_mode_;
     int top_k_ = 0;
     int chunk_size_ = 0;
     int chunk_overlap_ = 0;
+    int expand_neighbors_ = 0;
+    int rerank_candidates_ = 0;
 };
 
 } // namespace ragcli::cmd

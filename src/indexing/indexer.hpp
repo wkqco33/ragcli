@@ -61,11 +61,14 @@ class Indexer {
             for (std::size_t i = 0; i < chunks.size(); ++i) {
                 rag::UpsertPoint data;
                 data.content = chunks[i].text;
-                data.title = build_title(chunks[i]);
+                data.title =
+                    options.title_override.empty() ? build_title(chunks[i]) : options.title_override;
                 data.source = chunks[i].source;
                 data.source_type = options.source_type;
+                data.heading_path = chunks[i].heading_path;
                 data.page_index = chunks[i].page_index;
                 data.chunk_index = chunks[i].chunk_index;
+                data.chunk_total = static_cast<int>(chunks.size());
                 data.is_image = chunks[i].is_image;
                 data.image_width = chunks[i].image_width;
                 data.image_height = chunks[i].image_height;

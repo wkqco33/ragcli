@@ -80,8 +80,12 @@ TEST(RagRunner, EmptyEmbeddingReturnsErrorForAdd) {
 TEST(RagRunner, QueryRagAttachesRetrievedImageToVisionPrompt) {
     auto llm_port = std::make_shared<MockLlmPort>();
     auto qdrant_port = std::make_shared<MockQdrantPort>();
-    qdrant_port->search_results_ = {
-        ragcli::rag::SearchHit{"a relevant chunk", 0.9, /*is_image=*/true, "base64-image-data"}};
+    ragcli::rag::SearchHit image_hit;
+    image_hit.text = "a relevant chunk";
+    image_hit.score = 0.9;
+    image_hit.is_image = true;
+    image_hit.image_base64 = "base64-image-data";
+    qdrant_port->search_results_ = {image_hit};
 
     ragcli::rag::RagRunner runner(llm_port, qdrant_port);
 
@@ -105,8 +109,10 @@ TEST(RagRunner, QueryRagAttachesRetrievedImageToVisionPrompt) {
 TEST(RagRunner, QueryRagUsesTextOnlyPromptWhenNoImageHits) {
     auto llm_port = std::make_shared<MockLlmPort>();
     auto qdrant_port = std::make_shared<MockQdrantPort>();
-    qdrant_port->search_results_ = {
-        ragcli::rag::SearchHit{"a relevant chunk", 0.9, /*is_image=*/false, ""}};
+    ragcli::rag::SearchHit text_hit;
+    text_hit.text = "a relevant chunk";
+    text_hit.score = 0.9;
+    qdrant_port->search_results_ = {text_hit};
 
     ragcli::rag::RagRunner runner(llm_port, qdrant_port);
 
@@ -126,6 +132,83 @@ TEST(RagRunner, QueryRagUsesTextOnlyPromptWhenNoImageHits) {
     // 이미지 hit 이 없으면 generate()(텍스트 전용) 경로를 타야 한다.
     EXPECT_NE(output.find("mock answer"), std::string::npos);
     EXPECT_EQ(output.find("mock vision answer"), std::string::npos);
+}
+
+TEST(RagRunner, QueryRagWidensSearchLimitForDefaultLexicalRerank) {
+    auto llm_port = std::make_shared<MockLlmPort>();
+    auto qdrant_port = std::make_shared<MockQdrantPort>();
+    ragcli::rag::SearchHit hit;
+    hit.text = "hello";
+    hit.score = 0.9;
+    qdrant_port->search_results_ = {hit};
+
+    ragcli::rag::RagRunner runner(llm_port, qdrant_port);
+
+    ragcli::rag::RagTargets targets;
+    targets.model = "mock-model";
+    targets.embed_model = "mock-embed-model";
+
+    ragcli::rag::RagRunner::QueryInput input;
+    input.query = "hello";
+    input.top_k = 3; // rerank_mode 기본값 "lexical" -> max(3*4, 20) = 20
+
+    ragcli::test::CoutCapture cap;
+    const int exit_code = runner.query_rag(input, targets);
+
+    EXPECT_EQ(exit_code, 0);
+    EXPECT_EQ(qdrant_port->last_search_limit_, 20);
+}
+
+TEST(RagRunner, QueryRagUsesTopKDirectlyWhenRerankDisabled) {
+    auto llm_port = std::make_shared<MockLlmPort>();
+    auto qdrant_port = std::make_shared<MockQdrantPort>();
+    ragcli::rag::SearchHit hit;
+    hit.text = "hello";
+    hit.score = 0.9;
+    qdrant_port->search_results_ = {hit};
+
+    ragcli::rag::RagRunner runner(llm_port, qdrant_port);
+
+    ragcli::rag::RagTargets targets;
+    targets.model = "mock-model";
+    targets.embed_model = "mock-embed-model";
+
+    ragcli::rag::RagRunner::QueryInput input;
+    input.query = "hello";
+    input.top_k = 3;
+    input.rerank_mode = "none";
+
+    ragcli::test::CoutCapture cap;
+    const int exit_code = runner.query_rag(input, targets);
+
+    EXPECT_EQ(exit_code, 0);
+    EXPECT_EQ(qdrant_port->last_search_limit_, 3);
+}
+
+TEST(RagRunner, QueryRagRespectsExplicitRerankCandidates) {
+    auto llm_port = std::make_shared<MockLlmPort>();
+    auto qdrant_port = std::make_shared<MockQdrantPort>();
+    ragcli::rag::SearchHit hit;
+    hit.text = "hello";
+    hit.score = 0.9;
+    qdrant_port->search_results_ = {hit};
+
+    ragcli::rag::RagRunner runner(llm_port, qdrant_port);
+
+    ragcli::rag::RagTargets targets;
+    targets.model = "mock-model";
+    targets.embed_model = "mock-embed-model";
+
+    ragcli::rag::RagRunner::QueryInput input;
+    input.query = "hello";
+    input.top_k = 3;
+    input.rerank_candidates = 50;
+
+    ragcli::test::CoutCapture cap;
+    const int exit_code = runner.query_rag(input, targets);
+
+    EXPECT_EQ(exit_code, 0);
+    EXPECT_EQ(qdrant_port->last_search_limit_, 50);
 }
 
 TEST(RagRunner, ParseScoreThresholdAcceptsValidRange) {

@@ -14,6 +14,12 @@ namespace ragcli::rag {
 // 벡터 스토어로 교체할 때 이 구조체만 채우면 된다).
 struct SearchHit {
     std::string text;
+    std::string title;
+    std::string source;       // 출처 파일 경로
+    std::string heading_path; // 마크다운 헤딩 계층 경로 (없으면 빈 문자열)
+    int page_index = 0;
+    int chunk_index = 0;
+    int chunk_total = 0;
     double score = 0.0;
     bool is_image = false;
     std::string image_base64;
@@ -24,11 +30,13 @@ struct SearchHit {
 struct UpsertPoint {
     std::string content;
     std::string title;
-    std::string source;      // 출처 파일 경로
-    std::string source_type; // ragcli_add / ragcli_index 등
-    int page_index = 0;      // 페이지 번호
-    int chunk_index = 0;     // 청크 번호
-    bool is_image = false;   // 이미지 콘텐츠 여부
+    std::string source;       // 출처 파일 경로
+    std::string source_type;  // ragcli_add / ragcli_index 등
+    std::string heading_path; // 마크다운 헤딩 계층 경로 (없으면 빈 문자열)
+    int page_index = 0;       // 페이지 번호
+    int chunk_index = 0;      // 청크 번호
+    int chunk_total = 0;      // 같은 소스 내 총 청크 수
+    bool is_image = false;    // 이미지 콘텐츠 여부
     int image_width = 0;
     int image_height = 0;
     std::string image_base64;
@@ -45,6 +53,11 @@ class QdrantPort {
     virtual auto search(const std::vector<float> &query_vec, int limit,
                         double score_threshold = 0.0,
                         const std::string &vector_name = "") const -> std::vector<SearchHit> = 0;
+
+    // 같은 source 안에서 chunk_index 가 [min_index, max_index] 범위인 이웃 청크를 가져온다.
+    // 벡터 검색이 아니므로 반환된 SearchHit::score 는 항상 0.0 이다.
+    virtual auto fetch_neighbors(const std::string &source, int min_index,
+                                 int max_index) const -> std::vector<SearchHit> = 0;
 
     virtual auto create_collection(int vector_size,
                                    const std::string &distance = "Cosine") const -> void = 0;
@@ -63,14 +76,13 @@ class QdrantClientAdapter : public QdrantPort {
     auto search(const std::vector<float> &query_vec, int limit, double score_threshold,
                 const std::string &vector_name) const -> std::vector<SearchHit> override {
         auto items = client_->search(query_vec, limit, score_threshold, vector_name);
+        return to_hits(items);
+    }
 
-        std::vector<SearchHit> hits;
-        hits.reserve(items.size());
-        for (auto &item : items) {
-            hits.push_back(SearchHit{std::move(item.text), item.score, item.is_image,
-                                     std::move(item.image_base64)});
-        }
-        return hits;
+    auto fetch_neighbors(const std::string &source, int min_index,
+                         int max_index) const -> std::vector<SearchHit> override {
+        auto items = client_->scroll_by_chunk_range(source, min_index, max_index);
+        return to_hits(items);
     }
 
     auto create_collection(int vector_size, const std::string &distance) const -> void override {
@@ -84,8 +96,10 @@ class QdrantClientAdapter : public QdrantPort {
         point_data.title = data.title;
         point_data.source = data.source;
         point_data.source_type = data.source_type;
+        point_data.heading_path = data.heading_path;
         point_data.page_index = data.page_index;
         point_data.chunk_index = data.chunk_index;
+        point_data.chunk_total = data.chunk_total;
         point_data.is_image = data.is_image;
         point_data.image_width = data.image_width;
         point_data.image_height = data.image_height;
@@ -95,6 +109,27 @@ class QdrantClientAdapter : public QdrantPort {
     }
 
   private:
+    static auto to_hits(std::vector<qdrant::QdrantClient::SearchResultItem> &items)
+        -> std::vector<SearchHit> {
+        std::vector<SearchHit> hits;
+        hits.reserve(items.size());
+        for (auto &item : items) {
+            SearchHit hit;
+            hit.text = std::move(item.text);
+            hit.title = std::move(item.title);
+            hit.source = std::move(item.source);
+            hit.heading_path = std::move(item.heading_path);
+            hit.page_index = item.page_index;
+            hit.chunk_index = item.chunk_index;
+            hit.chunk_total = item.chunk_total;
+            hit.score = item.score;
+            hit.is_image = item.is_image;
+            hit.image_base64 = std::move(item.image_base64);
+            hits.push_back(std::move(hit));
+        }
+        return hits;
+    }
+
     std::shared_ptr<qdrant::QdrantClient> client_;
 };
 

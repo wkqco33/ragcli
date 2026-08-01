@@ -28,6 +28,7 @@ class TextFileSource : public DocumentSource {
         ExtractedPage page;
         page.text = buffer.str();
         page.title = path_;
+        page.source_path = path_;
 
         return {std::move(page)};
     }

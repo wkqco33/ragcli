@@ -23,7 +23,7 @@ class NoChunker : public Chunker {
             Chunk chunk;
             chunk.text = page.text;
             chunk.title = page.title;
-            chunk.source = source_name;
+            chunk.source = page.source_path.empty() ? source_name : page.source_path;
             chunk.page_index = page.page_index;
             chunk.chunk_index = chunk_index++;
             chunk.is_image = page.is_image;
