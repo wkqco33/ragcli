@@ -103,10 +103,9 @@ endif()
 find_package(Stb REQUIRED)
 target_include_directories(ragcli PRIVATE ${Stb_INCLUDE_DIR})
 
+set(BUILD_TESTING ON CACHE BOOL "" FORCE)
 include(CTest)
-if (BUILD_TESTING)
-  add_subdirectory(tests)
-endif()
+add_subdirectory(tests)
 
 if (MSVC)
   target_compile_options(ragcli PRIVATE /W4 /permissive- /utf-8)

@@ -7,6 +7,7 @@
 #include "chunking/chunk.hpp"
 #include "chunking/chunker_interface.hpp"
 #include "utils/base64.hpp"
+#include "utils/image_utils.hpp"
 
 namespace ragcli::chunking {
 
@@ -31,7 +32,12 @@ class NoChunker : public Chunker {
             chunk.image_height = page.image_height;
             chunk.image = page.image;
             if (!page.image.empty()) {
-                chunk.image_base64 = utils::base64_encode(page.image);
+                auto [scaled_image, new_w, new_h] = utils::downsample_rgba_if_needed(
+                    page.image, page.image_width, page.image_height);
+                chunk.image_width = new_w;
+                chunk.image_height = new_h;
+                chunk.image = scaled_image;
+                chunk.image_base64 = utils::base64_encode(scaled_image);
             }
             chunks.push_back(std::move(chunk));
         }

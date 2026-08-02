@@ -177,7 +177,14 @@ class QdrantClient {
             payload["image_width"] = data.image_width;
             payload["image_height"] = data.image_height;
             if (!data.image_base64.empty()) {
-                payload["image_base64"] = data.image_base64;
+                constexpr std::size_t k_max_image_base64_bytes = 20 * 1024 * 1024; // 20 MB 안전 한계
+                if (data.image_base64.size() > k_max_image_base64_bytes) {
+                    wcppcli::WLog::warn(
+                        "Image base64 size (" + std::to_string(data.image_base64.size()) +
+                        " bytes) exceeds safe Qdrant limit (20MB). Omitting image base64 payload to prevent HTTP 400 error.");
+                } else {
+                    payload["image_base64"] = data.image_base64;
+                }
             }
         }
         point["payload"] = payload;

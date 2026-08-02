@@ -26,10 +26,11 @@ add_executable(ragcli_tests
   chunking_test.cpp
   prompt_test.cpp
   lexical_search_test.cpp
+  image_utils_test.cpp
   ../src/utils/stb_image_impl.cpp
 )
 target_include_directories(ragcli_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(ragcli_tests PRIVATE GTest::gtest_main wcppcli llm_client cpppdf::cpppdf)
+target_link_libraries(ragcli_tests PRIVATE GTest::gtest_main wcppcli llm_client cpppdf::cpppdf fmt::fmt spdlog::spdlog cpr::cpr)
 target_compile_definitions(ragcli_tests PRIVATE
   RAGCLI_TEST_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
 
