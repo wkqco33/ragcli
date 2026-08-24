@@ -93,7 +93,7 @@ TEST(PdfSummarizeCommand, SplitTextForMapReduce) {
 
     auto chunks = ragcli::cmd::PdfSummarizeCommand::split_text_for_map_reduce(text, 500);
     EXPECT_GT(chunks.size(), 1U);
-    
+
     std::string reassembled;
     for (const auto &c : chunks) {
         reassembled += c;

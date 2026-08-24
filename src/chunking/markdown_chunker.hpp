@@ -44,14 +44,13 @@ class MarkdownChunker : public Chunker {
                 chunk.is_image = true;
                 chunk.image_width = page.image_width;
                 chunk.image_height = page.image_height;
-                chunk.image = page.image;
                 if (!page.image.empty()) {
                     auto [scaled_image, new_w, new_h] = utils::downsample_rgba_if_needed(
                         page.image, page.image_width, page.image_height);
                     chunk.image_width = new_w;
                     chunk.image_height = new_h;
-                    chunk.image = scaled_image;
-                    chunk.image_base64 = utils::base64_encode(scaled_image);
+                    chunk.image = std::move(scaled_image);
+                    chunk.image_base64 = utils::base64_encode(chunk.image);
                 }
                 chunks.push_back(std::move(chunk));
                 continue;
@@ -104,8 +103,8 @@ class MarkdownChunker : public Chunker {
 
     // 페이지 텍스트를 헤딩 경계로 분할한다. chunk_size_/4 문자 미만인 섹션은
     // (헤딩만 있고 내용이 거의 없는 경우 등) 다음 섹션과 합쳐진다.
-    auto split_sections(const std::string &text, const std::string &page_title) const
-        -> std::vector<Section> {
+    auto split_sections(const std::string &text,
+                        const std::string &page_title) const -> std::vector<Section> {
         std::vector<Section> sections;
         std::istringstream stream(text);
         std::string line;

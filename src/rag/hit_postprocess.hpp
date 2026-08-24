@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <functional>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -10,10 +12,20 @@
 
 namespace ragcli::rag {
 
-// hits 각각에 대해 같은 source 안의 chunk_index ± radius 이웃 청크를 QdrantPort 로
-// 가져와 후보에 추가한다. radius <= 0 이면 아무 것도 하지 않는다. 새로 추가된
-// 이웃 청크는 score 를 0.0 으로 낮춰 원래 검색 순위에 영향을 주지 않게 하고,
-// merge_adjacent 가 인접한 히트와 하나로 합치도록 한다.
+namespace {
+// (source, chunk_index) 를 std::unordered_set 의 키로 쓰기 위한 해셔.
+struct SourceChunkHash {
+    std::size_t operator()(const std::pair<std::string, int> &k) const noexcept {
+        std::size_t h = std::hash<std::string>{}(k.first);
+        h ^= static_cast<std::size_t>(k.second) + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2);
+        return h;
+    }
+};
+
+} // namespace
+
+// 각 hit 의 chunk_index ± radius 이웃 청크를 같은 source 안에서 후보에 추가한다.
+// radius <= 0 이면 no-op. 추가된 이웃은 score 0.0 으로 원 순위를 유지한다.
 inline auto expand_neighbors(const std::vector<SearchHit> &hits, const QdrantPort &port,
                              int radius) -> std::vector<SearchHit> {
     if (radius <= 0) {
@@ -22,11 +34,11 @@ inline auto expand_neighbors(const std::vector<SearchHit> &hits, const QdrantPor
 
     std::vector<SearchHit> expanded = hits;
 
-    std::vector<std::pair<std::string, int>> seen;
+    std::unordered_set<std::pair<std::string, int>, SourceChunkHash> seen;
     seen.reserve(hits.size());
     for (const auto &hit : hits) {
         if (!hit.source.empty()) {
-            seen.emplace_back(hit.source, hit.chunk_index);
+            seen.emplace(hit.source, hit.chunk_index);
         }
     }
 
@@ -39,14 +51,9 @@ inline auto expand_neighbors(const std::vector<SearchHit> &hits, const QdrantPor
 
         auto neighbors = port.fetch_neighbors(hit.source, min_index, max_index);
         for (auto &neighbor : neighbors) {
-            const bool already_present =
-                std::any_of(seen.begin(), seen.end(), [&](const std::pair<std::string, int> &key) {
-                    return key.first == neighbor.source && key.second == neighbor.chunk_index;
-                });
-            if (already_present) {
+            if (!seen.emplace(neighbor.source, neighbor.chunk_index).second) {
                 continue;
             }
-            seen.emplace_back(neighbor.source, neighbor.chunk_index);
             neighbor.score = 0.0;
             expanded.push_back(std::move(neighbor));
         }

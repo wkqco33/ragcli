@@ -30,14 +30,13 @@ class NoChunker : public Chunker {
             chunk.is_image = page.is_image;
             chunk.image_width = page.image_width;
             chunk.image_height = page.image_height;
-            chunk.image = page.image;
             if (!page.image.empty()) {
                 auto [scaled_image, new_w, new_h] = utils::downsample_rgba_if_needed(
                     page.image, page.image_width, page.image_height);
                 chunk.image_width = new_w;
                 chunk.image_height = new_h;
-                chunk.image = scaled_image;
-                chunk.image_base64 = utils::base64_encode(scaled_image);
+                chunk.image = std::move(scaled_image);
+                chunk.image_base64 = utils::base64_encode(chunk.image);
             }
             chunks.push_back(std::move(chunk));
         }

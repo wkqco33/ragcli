@@ -1,5 +1,8 @@
 # ragcli
 
+![CI](https://github.com/wkqco33/ragcli/actions/workflows/ci.yml/badge.svg)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+
 Qdrant 벡터 데이터베이스와 LLM(Ollama, OpenAI, Azure OpenAI)을 연동하여 지식 검색, 문서 인덱싱, 멀티모달(이미지/PDF) 처리 및 생성형 답변(RAG)을 수행하는 C++17 기반 CLI 도구입니다.
 
 ---
@@ -35,7 +38,16 @@ ppm install wkqco33/ragcli
 - **설정 관리 (config)**: `config.yaml` / `.env` 파일의 조회, 초기화(`init`), 값 설정(`set`), 경로 확인(`path`) 서브커맨드 지원.
 - **계층적 환경 설정 우선순위**: CLI 플래그 > 현재 디렉터리(CWD) 설정 (`config.yaml`/`.env`) > 전역 사용자 설정 (`~/.config/ragcli/config.yaml`) > 코드 기본값 순서로 설정을 오버라이드합니다.
 
-> 💡 **개발 및 TDD 가이드**: 다른 에이전트나 개발자는 [DEVELOPMENT.md](DEVELOPMENT.md)를 참고하세요.
+> 💡 **개발 및 TDD 가이드**: 다른 에이전트나 개발자는 [AGENTS.md](AGENTS.md)와 [DEVELOPMENT.md](DEVELOPMENT.md)를 참고하세요.
+
+---
+
+## 기여 / 보안 / 라이선스
+
+- [LICENSE](LICENSE) — MIT 라이선스
+- [CONTRIBUTING.md](CONTRIBUTING.md) — 기여 가이드 (TDD 절차 포함)
+- [SECURITY.md](SECURITY.md) — 보안 취약점 보고 및 원칙
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — 행동 강령
 
 ---
 
@@ -151,15 +163,19 @@ ragcli chat --provider openai -m gpt-4o-mini
 
 ### 4. `pdf` (PDF 요약)
 
-PDF 파일을 읽어 텍스트를 추출한 뒤 LLM을 통해 핵심 내용을 요약 정리합니다. Qdrant나 임베딩 없이 순수하게 LLM 한 번 호출로 요약을 수행합니다.
+PDF 파일을 읽어 텍스트를 추출한 뒤 LLM을 통해 핵심 내용을 요약 정리합니다. Qdrant나 임베딩 없이 단독으로 동작하며, 텍스트가 30,000자를 초과하면 자동으로 Map-Reduce 방식(청크 단위 요약 후 통합)으로 분할 요약합니다. `--map-reduce`로 강제할 수도 있습니다.
 
 | 플래그 | 단축키 | 설명 | 기본값 |
 | :--- | :--- | :--- | :--- |
 | `--file` | `-f` | 요약할 PDF 파일 경로 | (없음, 필수) |
 | `--provider` | (없음) | LLM 프로바이더 (`ollama`, `openai`, `azure`) | `ollama` |
-| `--model` | `-m` | 사용 LLM 모델명 | 프로바이더별 기본값 |
+| `--model` | `-m` | 사용 LLM 모델명 | 프로바이더별 기본값 (azure는 필수 지정) |
 | `--url` | `-u` | LLM 서버 URL | 프로바이더별 기본값 |
 | `--language` | `-l` | 요약 출력 언어 (`ko`, `en` 등) | `ko` |
+| `--pages` | `-p` | 포함할 페이지 범위 (예: `'1-50'`, `'1,3,5-10'`) | (전체) |
+| `--max-chars` | (없음) | 추출·처리할 최대 문자 수 (`0`: 무제한) | `0` |
+| `--chunk-size` | (없음) | Map-Reduce 단계의 청크 문자 크기 | `15000` |
+| `--map-reduce` | (없음) | Map-Reduce 청크 요약 강제 (30,000자 초과 시 자동 활성화) | 자동 |
 
 #### 사용 예시
 
@@ -206,6 +222,7 @@ ragcli ocr -f ./charts/table.jpg -m llava -u http://localhost:11434
 ### 6. `config` (설정 관리)
 
 `config.yaml` 또는 `.env` 설정 파일의 조회, 기본 파일 생성, 설정값 수정 및 경로 확인을 관리합니다.
+`ragcli config`로 설정을 표시할 때 API 키, 토큰, 비밀번호 등 민감한 값은 마스킹됩니다.
 
 | 서브커맨드 | 설명 |
 | :--- | :--- |
@@ -249,14 +266,35 @@ cmake --preset debug -DBUILD_TESTING=ON
 cmake --build build/debug --target ragcli ragcli_tests
 ```
 
+### 릴리스 바이너리
+
+릴리스 페이지에서 Linux x64, macOS arm64, Windows x64용 압축 파일을 받을 수
+있습니다. 각 파일의 SHA-256 checksum으로 다운로드 무결성을 확인하세요.
+
+```bash
+# Linux
+sha256sum -c ragcli_linux_amd64.tar.gz.sha256
+# macOS: shasum -a 256 -c ragcli_darwin_arm64.tar.gz.sha256
+```
+
+버전 확인:
+
+```bash
+ragcli --version
+```
+
 ---
 
 ## 테스트 실행
 
-GoogleTest 기반 단위 테스트가 커맨드별로 분리되어 작성되어 있습니다 (`tests/`).
+GoogleTest 기반 단위 테스트가 모듈/커맨드별로 분리되어 작성되어 있습니다 (`tests/`).
 
 ```bash
-ctest --test-dir build/debug -R "^(RegisterCommands|RagCommand|RagRunner|ChatCommand|ChatRunner|Indexer|ImageFileSource|MarkdownChunker|Base64|PdfSummarize)" --output-on-failure
+# 전체 테스트 실행 (권장)
+ctest --test-dir build/debug --output-on-failure
+
+# 대표 스위트 일부만 실행 (예: RAG/렉시컬/이미지)
+ctest --test-dir build/debug -R "^(RagRunner|LexicalSearch|ImageUtils|PromptBuilder|HitPostprocess)" --output-on-failure
 ```
 
 ---

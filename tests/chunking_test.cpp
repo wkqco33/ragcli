@@ -52,11 +52,15 @@ auto is_valid_utf8(const std::string &text) -> bool {
 }
 
 auto build_tagged_text(int count) -> std::string {
+    constexpr int k_tag_width = 4;
     std::string result;
+    result.reserve(static_cast<std::size_t>(count) * k_tag_width);
     for (int i = 0; i < count; ++i) {
-        char buf[8];
-        std::snprintf(buf, sizeof(buf), "%04d", i);
-        result += buf;
+        std::string tag = std::to_string(i);
+        if (static_cast<int>(tag.size()) < k_tag_width) {
+            tag.insert(tag.begin(), k_tag_width - static_cast<int>(tag.size()), '0');
+        }
+        result += tag;
     }
     return result;
 }
@@ -104,7 +108,8 @@ TEST(SimpleChunker, OverlapRegionMatchesBetweenAdjacentChunks) {
     auto chunks = chunker.chunk(single_page(text, "tags.txt"), "tags.txt");
 
     ASSERT_GT(chunks.size(), 2U);
-    for (std::size_t i = 0; i + 2 < chunks.size(); ++i) { // 마지막 청크는 병합으로 길이가 다를 수 있어 제외
+    for (std::size_t i = 0; i + 2 < chunks.size();
+         ++i) { // 마지막 청크는 병합으로 길이가 다를 수 있어 제외
         ASSERT_GE(chunks[i].text.size(), 20U);
         const std::string tail = chunks[i].text.substr(chunks[i].text.size() - 20);
         const std::string head = chunks[i + 1].text.substr(0, 20);
@@ -124,7 +129,8 @@ TEST(SimpleChunker, MergesTinyTailChunkIntoPrevious) {
 
 TEST(MarkdownChunker, BuildsHeadingPathAcrossLevels) {
     const std::string filler(150, 'x'); // min_chars(128) 를 넘겨 병합되지 않도록 함
-    const std::string md = "# Top\n" + filler + "\n## Mid\n" + filler + "\n### Leaf\n" + filler + "\n";
+    const std::string md =
+        "# Top\n" + filler + "\n## Mid\n" + filler + "\n### Leaf\n" + filler + "\n";
 
     MarkdownChunker chunker;
     auto chunks = chunker.chunk(single_page(md, "doc.md"), "doc.md");
@@ -140,8 +146,8 @@ TEST(MarkdownChunker, BuildsHeadingPathAcrossLevels) {
 
 TEST(MarkdownChunker, IgnoresHeadingLikeLinesInsideFencedCodeBlocks) {
     const std::string filler(150, 'x');
-    const std::string md = "# Real Heading\n" + filler +
-                           "\n```\n# not a heading\n```\n" + std::string(150, 'y') + "\n";
+    const std::string md = "# Real Heading\n" + filler + "\n```\n# not a heading\n```\n" +
+                           std::string(150, 'y') + "\n";
 
     MarkdownChunker chunker;
     auto chunks = chunker.chunk(single_page(md, "doc.md"), "doc.md");

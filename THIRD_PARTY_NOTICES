@@ -1,0 +1,39 @@
+ragcli third-party software notices
+===================================
+
+ragcli is distributed under the MIT License. It includes or links the following
+third-party components. Their license terms apply to those components.
+
+- wcppcli
+  Repository: https://github.com/wkqco33/wcppcli
+  Revision: af36314d12483fe4f9650d6eacd85becc571c9d0
+  License: MIT (as identified by the repository metadata)
+
+- cpppdf
+  Repository: https://github.com/wkqco33/cpppdf
+  Revision: 7e049d7d36026f846ea60a1765ee2734deaefa68
+  License: MIT
+
+- LLM_client
+  Repository: https://gitlab.com/wkqco33/LLM_client
+  Revision: 165bc4abb8a27bb0c3213b1557027931062393ba
+  License: MIT
+
+- cpr
+  License: MIT
+
+- fmt
+  License: MIT
+
+- nlohmann-json
+  License: MIT
+
+- spdlog
+  License: MIT
+
+- stb
+  License: Public domain or MIT (dual license)
+
+The release archives include the complete license texts collected from the
+vcpkg installation under the `licenses/` directory. Keep that directory with
+binary redistributions when required by the applicable license.

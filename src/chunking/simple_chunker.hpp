@@ -21,8 +21,7 @@ namespace ragcli::chunking {
 inline constexpr std::size_t k_default_chunk_size = 512; // 문자(코드포인트) 수 기준
 inline constexpr std::size_t k_default_overlap = 64;     // 문자(코드포인트) 수 기준
 
-// 생성자 인자가 모두 std::size_t라서 순서를 바꿔 전달하기 쉬운 실수를 막기 위해
-// chunk size 와 overlap 각각을 강력한 타입으로 구분한다.
+// 생성자 인자가 모두 std::size_t라서 순서를 바꿔 전달하기 쉬운 실수를 막기 위한 강력한 타입.
 struct ChunkSize {
     std::size_t value;
 };
@@ -58,14 +57,13 @@ class SimpleChunker : public Chunker {
                 chunk.is_image = true;
                 chunk.image_width = page.image_width;
                 chunk.image_height = page.image_height;
-                chunk.image = page.image;
                 if (!page.image.empty()) {
                     auto [scaled_image, new_w, new_h] = utils::downsample_rgba_if_needed(
                         page.image, page.image_width, page.image_height);
                     chunk.image_width = new_w;
                     chunk.image_height = new_h;
-                    chunk.image = scaled_image;
-                    chunk.image_base64 = utils::base64_encode(scaled_image);
+                    chunk.image = std::move(scaled_image);
+                    chunk.image_base64 = utils::base64_encode(chunk.image);
                 }
                 chunks.push_back(std::move(chunk));
                 continue;
@@ -152,7 +150,8 @@ class SimpleChunker : public Chunker {
         }
 
         const std::size_t max_lookback_chars = (std::max<std::size_t>)(chunk_size_ / 4, 1);
-        std::size_t lookback_start = utils::utf8::retreat_chars(text, window_end, max_lookback_chars);
+        std::size_t lookback_start =
+            utils::utf8::retreat_chars(text, window_end, max_lookback_chars);
         if (lookback_start < start) {
             lookback_start = start;
         }
@@ -168,7 +167,7 @@ class SimpleChunker : public Chunker {
 
         // 문장 종결부호 목록 (마침표/느낌표/물음표 + 한중일 전각형).
         static constexpr std::array<std::string_view, 6> k_enders = {
-            ".", "!", "?", "\xE3\x80\x82" /* 。 */, "\xEF\xBC\x81" /* ！ */,
+            ".",           "!", "?", "\xE3\x80\x82" /* 。 */, "\xEF\xBC\x81" /* ！ */,
             "\xEF\xBC\x9F" /* ？ */};
 
         std::size_t best_pos = std::string_view::npos;
@@ -179,9 +178,8 @@ class SimpleChunker : public Chunker {
                 continue;
             }
             const std::size_t after = pos + ender.size();
-            const bool boundary_ok =
-                after >= window.size() || window[after] == ' ' || window[after] == '\n' ||
-                window[after] == '\t';
+            const bool boundary_ok = after >= window.size() || window[after] == ' ' ||
+                                     window[after] == '\n' || window[after] == '\t';
             if (!boundary_ok) {
                 continue;
             }

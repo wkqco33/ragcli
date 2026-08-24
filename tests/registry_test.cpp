@@ -22,3 +22,10 @@ TEST(RegisterCommands, AddsSubcommands) {
     EXPECT_EQ(root.subcommands[5]->name, "config");
     EXPECT_FALSE(root.subcommands[5]->description.empty());
 }
+
+TEST(RegisterCommands, SetsApplicationVersion) {
+    wcppcli::Command root;
+    auto holders = ragcli::cmd::register_commands(root);
+
+    EXPECT_EQ(root.version, "0.1.0");
+}

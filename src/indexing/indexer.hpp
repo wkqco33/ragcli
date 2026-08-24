@@ -63,8 +63,8 @@ class Indexer {
             for (std::size_t i = 0; i < chunks.size(); ++i) {
                 rag::UpsertPoint data;
                 data.content = chunks[i].text;
-                data.title =
-                    options.title_override.empty() ? build_title(chunks[i]) : options.title_override;
+                data.title = options.title_override.empty() ? build_title(chunks[i])
+                                                            : options.title_override;
                 data.source = chunks[i].source;
                 data.source_type = options.source_type;
                 data.heading_path = chunks[i].heading_path;
@@ -91,8 +91,8 @@ class Indexer {
     }
 
   private:
-    auto embed_with_retry(const std::vector<std::string> &texts, const std::string &model) const
-        -> std::vector<std::vector<float>> {
+    auto embed_with_retry(const std::vector<std::string> &texts,
+                          const std::string &model) const -> std::vector<std::vector<float>> {
         constexpr int k_max_retries = 3;
         for (int attempt = 1; attempt <= k_max_retries; ++attempt) {
             try {
@@ -136,7 +136,8 @@ class Indexer {
 
         for (std::size_t b_start = 0; b_start < num_batches; b_start += k_max_concurrent_batches) {
             std::size_t b_end = (std::min)(b_start + k_max_concurrent_batches, num_batches);
-            std::vector<std::future<std::pair<std::size_t, std::vector<std::vector<float>>>>> futures;
+            std::vector<std::future<std::pair<std::size_t, std::vector<std::vector<float>>>>>
+                futures;
 
             for (std::size_t b = b_start; b < b_end; ++b) {
                 std::size_t start = b * k_batch_size;
@@ -148,8 +149,8 @@ class Indexer {
                     batch_texts.push_back(chunks[i].text);
                 }
 
-                futures.push_back(
-                    std::async(std::launch::async, [this, start, texts = std::move(batch_texts), model]() {
+                futures.push_back(std::async(
+                    std::launch::async, [this, start, texts = std::move(batch_texts), model]() {
                         return std::make_pair(start, embed_with_retry(texts, model));
                     }));
             }

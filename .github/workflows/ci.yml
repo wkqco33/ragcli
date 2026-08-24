@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
 
 jobs:
@@ -41,6 +41,7 @@ jobs:
       - name: Bootstrap vcpkg
         run: |
           git clone https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
+          git -C "$HOME/vcpkg" checkout --detach 9d7f79f56ae1a9b4704d6a7fb8237e347a974133
           "$HOME/vcpkg/bootstrap-vcpkg.sh"
           echo "VCPKG_ROOT=$HOME/vcpkg" >> "$GITHUB_ENV"
 
@@ -84,6 +85,7 @@ jobs:
       - name: Bootstrap vcpkg
         run: |
           git clone https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
+          git -C "$HOME/vcpkg" checkout --detach 9d7f79f56ae1a9b4704d6a7fb8237e347a974133
           "$HOME/vcpkg/bootstrap-vcpkg.sh"
           echo "VCPKG_ROOT=$HOME/vcpkg" >> "$GITHUB_ENV"
 

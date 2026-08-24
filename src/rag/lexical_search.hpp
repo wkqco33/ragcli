@@ -124,6 +124,7 @@ inline auto bm25_scores(const std::vector<std::string> &query_tokens,
     }
 
     std::vector<std::size_t> doc_len(n_docs, 0);
+    std::vector<std::unordered_map<std::string, int>> term_freqs(n_docs);
     std::unordered_map<std::string, int> doc_freq;
     double total_len = 0.0;
 
@@ -131,9 +132,12 @@ inline auto bm25_scores(const std::vector<std::string> &query_tokens,
         doc_len[i] = doc_tokens[i].size();
         total_len += static_cast<double>(doc_len[i]);
 
-        std::unordered_set<std::string> seen;
+        // term_freq 를 한 번만 세고, 해당 문서에서 처음 등장한 토큰으로만
+        // doc_freq 를 증가시켜 토큰 해싱을 한 번으로 줄인다.
+        auto &tf = term_freqs[i];
+        tf.reserve(doc_len[i]);
         for (const auto &tok : doc_tokens[i]) {
-            if (seen.insert(tok).second) {
+            if (++tf[tok] == 1) {
                 ++doc_freq[tok];
             }
         }
@@ -143,15 +147,11 @@ inline auto bm25_scores(const std::vector<std::string> &query_tokens,
     const std::unordered_set<std::string> query_set(query_tokens.begin(), query_tokens.end());
 
     for (std::size_t i = 0; i < n_docs; ++i) {
-        std::unordered_map<std::string, int> term_freq;
-        for (const auto &tok : doc_tokens[i]) {
-            ++term_freq[tok];
-        }
-
+        const auto &doc_tf = term_freqs[i];
         double score = 0.0;
         for (const auto &qterm : query_set) {
-            const auto tf_it = term_freq.find(qterm);
-            if (tf_it == term_freq.end()) {
+            const auto tf_it = doc_tf.find(qterm);
+            if (tf_it == doc_tf.end()) {
                 continue;
             }
             const auto df_it = doc_freq.find(qterm);
@@ -159,8 +159,7 @@ inline auto bm25_scores(const std::vector<std::string> &query_tokens,
             const double idf =
                 std::log(1.0 + (static_cast<double>(n_docs) - df + 0.5) / (df + 0.5));
             const double tf = static_cast<double>(tf_it->second);
-            const double len_norm =
-                avg_len > 0.0 ? static_cast<double>(doc_len[i]) / avg_len : 1.0;
+            const double len_norm = avg_len > 0.0 ? static_cast<double>(doc_len[i]) / avg_len : 1.0;
             const double denom = tf + params.k1 * (1.0 - params.b + params.b * len_norm);
             score += idf * (tf * (params.k1 + 1.0)) / denom;
         }
@@ -204,7 +203,7 @@ inline auto rerank_lexical(const std::vector<SearchHit> &hits, const std::string
     std::vector<double> fused(hits.size());
     for (std::size_t i = 0; i < hits.size(); ++i) {
         fused[i] = 1.0 / (k_rrf + static_cast<double>(i)) +
-                  1.0 / (k_rrf + static_cast<double>(lexical_rank[i]));
+                   1.0 / (k_rrf + static_cast<double>(lexical_rank[i]));
     }
 
     std::vector<std::size_t> final_order(hits.size());
@@ -214,9 +213,9 @@ inline auto rerank_lexical(const std::vector<SearchHit> &hits, const std::string
     std::stable_sort(final_order.begin(), final_order.end(),
                      [&](std::size_t a, std::size_t b) { return fused[a] > fused[b]; });
 
-    const std::size_t limit =
-        top_k > 0 ? (std::min)(static_cast<std::size_t>(top_k), final_order.size())
-                  : final_order.size();
+    const std::size_t limit = top_k > 0
+                                  ? (std::min)(static_cast<std::size_t>(top_k), final_order.size())
+                                  : final_order.size();
     std::vector<SearchHit> result;
     result.reserve(limit);
     for (std::size_t i = 0; i < limit; ++i) {

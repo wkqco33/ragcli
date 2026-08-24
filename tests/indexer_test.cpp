@@ -124,7 +124,7 @@ TEST(Indexer, PropagatesFileSourcePathAndChunkZeroIndexFromDirectoryIndexing) {
 
     EXPECT_EQ(exit_code, 0);
     ASSERT_EQ(qdrant_port->last_data_.size(), 1U);
-    EXPECT_EQ(qdrant_port->last_data_[0].chunk_index, 0);   // 0번 청크도 순서 정보가 전달되어야 함
+    EXPECT_EQ(qdrant_port->last_data_[0].chunk_index, 0); // 0번 청크도 순서 정보가 전달되어야 함
     EXPECT_EQ(qdrant_port->last_data_[0].source, "kb/file.txt"); // 디렉터리가 아니라 파일 경로
     EXPECT_EQ(qdrant_port->last_data_[0].chunk_total, 1);
 }
@@ -151,7 +151,8 @@ TEST(Indexer, SimpleChunkerSplitsLongText) {
 }
 
 TEST(ImageFileSource, DecodesPpmImage) {
-    const std::string ppm_path = (std::filesystem::temp_directory_path() / "ragcli_test_image.ppm").string();
+    const std::string ppm_path =
+        (std::filesystem::temp_directory_path() / "ragcli_test_image.ppm").string();
     {
         std::ofstream ppm(ppm_path, std::ios::binary);
         // 2x2 RGB 이미지 (P6 binary PPM)
@@ -184,9 +185,9 @@ TEST(ImageFileSource, DecodesPpmImage) {
 }
 
 TEST(ImageFileSource, ThrowsOnMissingFile) {
-    const std::string missing_path = (std::filesystem::temp_directory_path() / "ragcli_nonexistent.png").string();
-    auto source =
-        std::make_shared<ragcli::document::ImageFileSource>(missing_path);
+    const std::string missing_path =
+        (std::filesystem::temp_directory_path() / "ragcli_nonexistent.png").string();
+    auto source = std::make_shared<ragcli::document::ImageFileSource>(missing_path);
     EXPECT_THROW(source->extract(), std::runtime_error);
 }
 

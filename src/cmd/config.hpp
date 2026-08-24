@@ -63,7 +63,6 @@ class ConfigCommand : public CommandBase {
     }
 
   private:
-    // ragcli config — 현재 설정 내용 출력
     static auto run_show() -> int {
         const std::string path = ragcli::utils::find_config_path();
         if (path.empty()) {
@@ -87,12 +86,11 @@ class ConfigCommand : public CommandBase {
 
         std::string line;
         while (std::getline(file, line)) {
-            std::cout << line << "\n";
+            std::cout << mask_sensitive_config_line(line) << "\n";
         }
         return 0;
     }
 
-    // ragcli config init — 기본 config.yaml 생성
     auto run_init() -> int {
         const std::string config_dir = ragcli::utils::get_config_dir();
         const std::string config_path = ragcli::utils::get_default_config_path();
@@ -122,6 +120,8 @@ class ConfigCommand : public CommandBase {
 
     // --- 유틸리티 ---
 
+    // --- 유틸리티 ---
+
     static auto is_env_file(const std::string &path) -> bool {
         return path.length() >= 4 && path.substr(path.length() - 4) == ".env";
     }
@@ -146,23 +146,22 @@ class ConfigCommand : public CommandBase {
     }
 
     // 파일 확장자에 따라 설정 줄을 생성한다 (.env -> KEY=VALUE, .yaml -> KEY: VALUE)
-    static auto format_config_line(const std::string &path, const std::string &key, const std::string &value) -> std::string {
+    static auto format_config_line(const std::string &path, const std::string &key,
+                                   const std::string &value) -> std::string {
         if (is_env_file(path)) {
             return key + "=" + value;
         }
         // YAML 형식
-        const bool needs_quote = value.find(':') != std::string::npos ||
-                                 value.find('#') != std::string::npos ||
-                                 value.find('"') != std::string::npos ||
-                                 value.find('\'') != std::string::npos ||
-                                 value.find(' ') != std::string::npos;
+        const bool needs_quote =
+            value.find(':') != std::string::npos || value.find('#') != std::string::npos ||
+            value.find('"') != std::string::npos || value.find('\'') != std::string::npos ||
+            value.find(' ') != std::string::npos;
         if (needs_quote) {
             return key + ": \"" + value + "\"";
         }
         return key + ": " + value;
     }
 
-    // ragcli config set KEY VALUE — 설정 값 변경
     static auto run_set(const wcppcli::Command &cmd) -> int {
         if (cmd.args.size() < 2) {
             wcppcli::WLog::error("Usage: ragcli config set KEY VALUE");
@@ -180,7 +179,7 @@ class ConfigCommand : public CommandBase {
             std::filesystem::create_directories(config_dir);
         }
 
-        // 기존 파일 읽기
+        // 설정 파일 재작성 (기존 값 교체 또는 끝에 추가)
         std::vector<std::string> lines;
         bool key_found = false;
 
@@ -188,7 +187,6 @@ class ConfigCommand : public CommandBase {
             std::ifstream infile(config_path);
             std::string line;
             while (std::getline(infile, line)) {
-                // YAML/ENV 형식: "KEY: VALUE" 또는 "KEY=VALUE"
                 if (matches_key(line, key)) {
                     lines.push_back(format_config_line(config_path, key, value));
                     key_found = true;
@@ -203,7 +201,6 @@ class ConfigCommand : public CommandBase {
             lines.push_back(format_config_line(config_path, key, value));
         }
 
-        // 파일 쓰기
         std::ofstream outfile(config_path);
         if (!outfile.is_open()) {
             wcppcli::WLog::error("Failed to write: " + config_path);
@@ -213,12 +210,54 @@ class ConfigCommand : public CommandBase {
             outfile << line << "\n";
         }
 
-        wcppcli::WLog::success(key + " = " + value);
+        wcppcli::WLog::success(mask_sensitive_config_line(key + " = " + value));
         wcppcli::WLog::info("Saved to: " + config_path);
         return 0;
     }
 
-    // ragcli config path — 설정 파일 경로 출력
+  public:
+    // API keys and other credentials must not leak into terminal history or CI logs.
+    static auto mask_sensitive_config_line(const std::string &line) -> std::string {
+        const auto first = line.find_first_not_of(' ');
+        if (first == std::string::npos || line[first] == '#') {
+            return line;
+        }
+
+        const auto delimiter = line.find_first_of("=:", first);
+        if (delimiter == std::string::npos) {
+            return line;
+        }
+
+        std::string key = line.substr(first, delimiter - first);
+        while (!key.empty() && key.back() == ' ') {
+            key.pop_back();
+        }
+        std::string upper_key = key;
+        for (char &character : upper_key) {
+            if (character >= 'a' && character <= 'z') {
+                character = static_cast<char>(character - 'a' + 'A');
+            }
+        }
+        if (upper_key.find("API_KEY") == std::string::npos &&
+            upper_key.find("SECRET") == std::string::npos &&
+            upper_key.find("TOKEN") == std::string::npos &&
+            upper_key.find("PASSWORD") == std::string::npos) {
+            return line;
+        }
+
+        const auto value_start = line.find_first_not_of(' ', delimiter + 1);
+        if (value_start == std::string::npos) {
+            return line;
+        }
+
+        std::string masked = line.substr(0, value_start) + "***";
+        if (line[value_start] == '"' || line[value_start] == '\'') {
+            masked = line.substr(0, value_start) + line[value_start] + "***" + line[value_start];
+        }
+        return masked;
+    }
+
+  private:
     static auto run_path() -> int {
         const std::string path = ragcli::utils::find_config_path();
         if (path.empty()) {
@@ -230,16 +269,15 @@ class ConfigCommand : public CommandBase {
         return 0;
     }
 
-    // 기본 config.yaml 내용 생성
     static auto generate_default_yaml() -> std::string {
         std::ostringstream oss;
         oss << "# ragcli 설정 파일\n"
             << "#\n"
-            << "# 설정 파일 탐색 순서:\n"
-            << "#   1) 플랫폼 설정 디렉토리의 config.yaml\n"
-            << "#   2) 플랫폼 설정 디렉토리의 .env\n"
-            << "#   3) CWD의 config.yaml\n"
-            << "#   4) CWD의 .env\n"
+            << "# 설정 우선순위 (높은 순):\n"
+            << "#   1) CWD의 config.yaml\n"
+            << "#   2) CWD의 .env\n"
+            << "#   3) 플랫폼 설정 디렉토리의 config.yaml\n"
+            << "#   4) 플랫폼 설정 디렉토리의 .env\n"
             << "\n"
             << "# LLM 프로바이더: ollama (기본), openai, azure\n"
             << "LLM_PROVIDER: ollama\n"

@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
 
 permissions:
@@ -96,6 +96,7 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           git clone https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
+          git -C "$HOME/vcpkg" checkout --detach 9d7f79f56ae1a9b4704d6a7fb8237e347a974133
           "$HOME/vcpkg/bootstrap-vcpkg.sh"
           echo "VCPKG_ROOT=$HOME/vcpkg" >> "$GITHUB_ENV"
 
@@ -104,17 +105,15 @@ jobs:
         shell: pwsh
         run: |
           git clone https://github.com/microsoft/vcpkg.git "$env:USERPROFILE\vcpkg"
+          git -C "$env:USERPROFILE\vcpkg" checkout --detach 9d7f79f56ae1a9b4704d6a7fb8237e347a974133
           & "$env:USERPROFILE\vcpkg\bootstrap-vcpkg.bat"
           "VCPKG_ROOT=$env:USERPROFILE\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          # CMake picks up MinGW g++ from PATH on windows-latest (no MSVC dev
-          # shell is configured here), so vcpkg must build its C++ deps
-          # (cpr/spdlog/fmt/curl) with the same MinGW toolchain and ABI.
-          # Otherwise MSVC-mangled symbols from the default x64-windows
-          # triplet fail to link against GCC-mangled object files. Static
-          # linkage also matches the release packaging step, which ships a
-          # single ragcli.exe with no accompanying DLLs.
-          "VCPKG_DEFAULT_TRIPLET=x64-mingw-static" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "VCPKG_DEFAULT_HOST_TRIPLET=x64-mingw-static" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "VCPKG_DEFAULT_TRIPLET=x64-windows-static" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "VCPKG_DEFAULT_HOST_TRIPLET=x64-windows" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Initialize MSVC environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
 
       - name: Configure (Unix)
         if: runner.os != 'Windows'
@@ -122,10 +121,7 @@ jobs:
 
       - name: Configure (Windows)
         if: runner.os == 'Windows'
-        run: >
-          cmake --preset release
-          -DVCPKG_TARGET_TRIPLET=x64-mingw-static
-          -DVCPKG_HOST_TRIPLET=x64-mingw-static
+        run: cmake --preset release
 
       - name: Build
         run: cmake --build --preset release
@@ -135,16 +131,31 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
+          mkdir -p licenses
+          while IFS= read -r license; do
+            package=$(basename "$(dirname "$license")")
+            cp "$license" "licenses/${package}-copyright"
+          done < <(find build/release/vcpkg_installed -type f -name copyright | sort)
           cp build/release/ragcli "${{ matrix.binary_name }}"
-          tar -czf "dist/ragcli_${{ matrix.platform }}_${{ matrix.arch }}.tar.gz" "${{ matrix.binary_name }}"
+          ARCHIVE="dist/ragcli_${{ matrix.platform }}_${{ matrix.arch }}.tar.gz"
+          tar -czf "$ARCHIVE" "${{ matrix.binary_name }}" LICENSE THIRD_PARTY_NOTICES licenses
+          # ppm PACKAGE_GUIDE: ship a SHA-256 checksum alongside every archive
+          # so users with require_checksum: true can verify integrity.
+          (cd dist && shasum -a 256 "$(basename "$ARCHIVE")" > "$(basename "$ARCHIVE").sha256")
 
       - name: Package (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
+          New-Item -ItemType Directory -Force -Path licenses | Out-Null
+          Get-ChildItem -Path "build/release/vcpkg_installed" -Filter "copyright" -File -Recurse |
+            ForEach-Object { Copy-Item $_.FullName (Join-Path "licenses" "$($_.Directory.Name)-copyright") }
           Copy-Item "build/release/ragcli.exe" "ragcli.exe"
-          Compress-Archive -Path "ragcli.exe" -DestinationPath "dist/ragcli_windows_amd64.zip" -Force
+          Compress-Archive -Path "ragcli.exe", "LICENSE", "THIRD_PARTY_NOTICES", "licenses" -DestinationPath "dist/ragcli_windows_amd64.zip" -Force
+          # ppm PACKAGE_GUIDE: ship a SHA-256 checksum alongside the archive.
+          $h = (Get-FileHash "dist/ragcli_windows_amd64.zip" -Algorithm SHA256).Hash
+          "$h  ragcli_windows_amd64.zip" | Out-File -Encoding ascii "dist/ragcli_windows_amd64.zip.sha256"
 
       - name: Upload release assets
         if: startsWith(github.ref, 'refs/tags/v')

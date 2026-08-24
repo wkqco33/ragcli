@@ -7,8 +7,8 @@
 #include "cmd/registry.hpp"
 
 #if defined(_WIN32)
-#  include <windows.h>
-#  include <shellapi.h>
+#include <shellapi.h>
+#include <windows.h>
 #endif
 
 namespace {
@@ -30,8 +30,6 @@ auto main(int argc, char **argv) -> int {
         root.name = "ragcli";
         root.description = "ragcli";
 
-        // 커맨드 상태 홀더는 execute() 동안 살아있어야 하므로
-        // main 의 지역 변수로 들고 있는다.
         auto holders = ragcli::cmd::register_commands(root);
 
 #if defined(_WIN32)
@@ -44,10 +42,12 @@ auto main(int argc, char **argv) -> int {
             utf8_argv.reserve(wide_argc + 1);
 
             for (int i = 0; i < wide_argc; ++i) {
-                int size_needed = WideCharToMultiByte(CP_UTF8, 0, wide_argv[i], -1, nullptr, 0, nullptr, nullptr);
+                int size_needed =
+                    WideCharToMultiByte(CP_UTF8, 0, wide_argv[i], -1, nullptr, 0, nullptr, nullptr);
                 if (size_needed > 1) {
                     std::string u8str(size_needed - 1, '\0');
-                    WideCharToMultiByte(CP_UTF8, 0, wide_argv[i], -1, u8str.data(), size_needed, nullptr, nullptr);
+                    WideCharToMultiByte(CP_UTF8, 0, wide_argv[i], -1, u8str.data(), size_needed,
+                                        nullptr, nullptr);
                     utf8_args.push_back(std::move(u8str));
                 } else {
                     utf8_args.push_back("");
@@ -73,4 +73,3 @@ auto main(int argc, char **argv) -> int {
         return 1;
     }
 }
-

@@ -46,9 +46,9 @@ class RagRunner {
         std::string query;
         int top_k = 0;
         std::string score_threshold_str;
-        int expand_neighbors = 0;       // 히트당 앞뒤로 확장할 이웃 청크 개수 (0=비활성)
+        int expand_neighbors = 0; // 히트당 앞뒤로 확장할 이웃 청크 개수 (0=비활성)
         std::string rerank_mode = "lexical"; // "none" | "lexical"
-        int rerank_candidates = 0;      // 0=자동(top_k*4, 최소 20)
+        int rerank_candidates = 0;           // 0=자동(top_k*4, 최소 20)
     };
 
     static constexpr int k_rerank_candidate_multiplier = 4;
@@ -157,12 +157,11 @@ class RagRunner {
             // 2) Qdrant 검색 (lexical 리랭크 시 후보를 top_k 보다 넓게 가져온다)
             const bool use_lexical_rerank = input.rerank_mode == "lexical";
             const int candidate_limit =
-                use_lexical_rerank
-                    ? (input.rerank_candidates > 0
-                           ? input.rerank_candidates
-                           : (std::max)(target_top_k * k_rerank_candidate_multiplier,
-                                        k_rerank_min_candidates))
-                    : target_top_k;
+                use_lexical_rerank ? (input.rerank_candidates > 0
+                                          ? input.rerank_candidates
+                                          : (std::max)(target_top_k * k_rerank_candidate_multiplier,
+                                                       k_rerank_min_candidates))
+                                   : target_top_k;
 
             auto hits = qdrant_port_->search(embed_res.embeddings[0], candidate_limit,
                                              target_score_threshold);
@@ -181,7 +180,7 @@ class RagRunner {
                                     " chunks from Qdrant");
             }
 
-            // 3) 프롬프트 생성 및 LLM 호출 (멀티모달 Vision 연동)
+            // 4) 프롬프트 생성 및 LLM 호출 (멀티모달 Vision 연동)
             std::string prompt = build_query_prompt(hits, input.query);
             wcppcli::WLog::info("Generated Prompt:\n" + prompt);
 

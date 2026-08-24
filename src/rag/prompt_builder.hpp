@@ -78,10 +78,11 @@ inline auto build_query_prompt(const std::vector<SearchHit> &hits,
         context += render_doc_block(i + 1, hits[i]);
     }
 
-    return std::string("아래 문서 조각들을 근거로 질문에 답하세요.\n"
-                       "- 답변에 사용한 근거는 문장 끝에 [1], [2] 형식으로 인용하세요 (문서의 id 사용).\n"
-                       "- 조각에 근거가 없으면 '제공된 문서에는 답이 없습니다'라고만 답하세요.\n"
-                       "- 조각끼리 내용이 상충하면 그 사실을 명시하세요.\n\n") +
+    return std::string(
+               "아래 문서 조각들을 근거로 질문에 답하세요.\n"
+               "- 답변에 사용한 근거는 문장 끝에 [1], [2] 형식으로 인용하세요 (문서의 id 사용).\n"
+               "- 조각에 근거가 없으면 '제공된 문서에는 답이 없습니다'라고만 답하세요.\n"
+               "- 조각끼리 내용이 상충하면 그 사실을 명시하세요.\n\n") +
            (context.empty() ? "(문서 없음)\n" : context) + "\n질문: " + query;
 }
 

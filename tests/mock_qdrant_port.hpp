@@ -18,7 +18,7 @@ class MockQdrantPort : public rag::QdrantPort {
     }
 
     auto fetch_neighbors(const std::string & /*source*/, int /*min_index*/,
-                        int /*max_index*/) const -> std::vector<rag::SearchHit> override {
+                         int /*max_index*/) const -> std::vector<rag::SearchHit> override {
         return neighbor_results_;
     }
 

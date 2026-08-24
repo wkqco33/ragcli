@@ -5,12 +5,10 @@
 
 namespace ragcli::utils::utf8 {
 
-// text[pos] 에서 시작하는 UTF-8 시퀀스를 디코딩해 코드포인트를 반환하고, 소비한
-// 바이트 수를 out_len 에 채운다. pos 는 반드시 시퀀스 시작(비-continuation)
-// 바이트를 가리켜야 한다. 잘린/손상된 시퀀스는 1바이트만 소비하고 해당 바이트
-// 값을 그대로 반환한다 (호출자가 무한 루프 없이 항상 전진할 수 있도록 보장).
-inline auto decode_codepoint(std::string_view text, std::size_t pos, std::size_t &out_len)
-    -> char32_t {
+// text[pos] 의 UTF-8 시퀀스를 디코딩해 코드포인트와 소비 바이트 수(out_len)를 반환한다.
+// 손상된 시퀀스는 1바이트만 소비해 항상 전진을 보장한다.
+inline auto decode_codepoint(std::string_view text, std::size_t pos,
+                             std::size_t &out_len) -> char32_t {
     const auto b0 = static_cast<unsigned char>(text[pos]);
     if ((b0 & 0x80) == 0x00) {
         out_len = 1;
@@ -67,8 +65,8 @@ inline auto snap_back(std::string_view text, std::size_t byte_pos) -> std::size_
 
 // byte_pos 에서 시작해 n 개의 코드포인트만큼 앞으로 이동한 바이트 오프셋을 반환한다.
 // text 끝에 도달하면 text.size() 를 반환한다.
-inline auto advance_chars(std::string_view text, std::size_t byte_pos, std::size_t n)
-    -> std::size_t {
+inline auto advance_chars(std::string_view text, std::size_t byte_pos,
+                          std::size_t n) -> std::size_t {
     std::size_t pos = snap_back(text, byte_pos);
     std::size_t remaining = n;
     while (remaining > 0 && pos < text.size()) {
@@ -83,8 +81,8 @@ inline auto advance_chars(std::string_view text, std::size_t byte_pos, std::size
 
 // byte_pos 에서 시작해 n 개의 코드포인트만큼 뒤로 이동한 바이트 오프셋을 반환한다.
 // text 시작에 도달하면 0 을 반환한다.
-inline auto retreat_chars(std::string_view text, std::size_t byte_pos, std::size_t n)
-    -> std::size_t {
+inline auto retreat_chars(std::string_view text, std::size_t byte_pos,
+                          std::size_t n) -> std::size_t {
     std::size_t pos = snap_back(text, byte_pos);
     std::size_t remaining = n;
     while (remaining > 0 && pos > 0) {

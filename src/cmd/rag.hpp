@@ -20,8 +20,8 @@
 #include "rag/qdrant_port.hpp"
 #include "rag/rag_config.hpp"
 #include "rag/rag_runner.hpp"
-#include "wcppcli/wconf.hpp"
 #include "utils/config_path.hpp"
+#include "wcppcli/wconf.hpp"
 
 namespace ragcli::cmd {
 

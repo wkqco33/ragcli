@@ -42,8 +42,8 @@ class PdfSummarizeCommand : public CommandBase {
                         &base_url_);
         add_string_flag(*cmd, "language", 'l',
                         "Summary output language (e.g. 'ko', 'en'). Default: ko", &language_);
-        add_string_flag(*cmd, "pages", 'p',
-                        "Page ranges to include (e.g. '1-50', '1,3,5-10')", &pages_);
+        add_string_flag(*cmd, "pages", 'p', "Page ranges to include (e.g. '1-50', '1,3,5-10')",
+                        &pages_);
         add_int_flag(*cmd, "max-chars", 0,
                      "Maximum text characters to extract and process (0: unlimited)", &max_chars_);
         add_int_flag(*cmd, "chunk-size", 0,
@@ -57,8 +57,7 @@ class PdfSummarizeCommand : public CommandBase {
         root.add_command(std::move(cmd));
     }
 
-    static auto parse_page_ranges(const std::string &spec)
-        -> std::vector<std::pair<int, int>> {
+    static auto parse_page_ranges(const std::string &spec) -> std::vector<std::pair<int, int>> {
         std::vector<std::pair<int, int>> ranges;
         if (spec.empty()) {
             return ranges;
@@ -173,7 +172,8 @@ class PdfSummarizeCommand : public CommandBase {
         }
 
         if (full_text.empty()) {
-            wcppcli::WLog::error("No text content could be extracted from the PDF matching criteria.");
+            wcppcli::WLog::error(
+                "No text content could be extracted from the PDF matching criteria.");
             return 1;
         }
 
@@ -185,8 +185,9 @@ class PdfSummarizeCommand : public CommandBase {
         if (max_chars_ > 0 && full_text.size() > static_cast<std::size_t>(max_chars_)) {
             std::size_t truncated_bytes =
                 utils::utf8::advance_chars(full_text, 0, static_cast<std::size_t>(max_chars_));
-            wcppcli::WLog::info("Truncating extracted text from " + std::to_string(full_text.size()) +
-                                " to " + std::to_string(max_chars_) + " characters (--max-chars).");
+            wcppcli::WLog::info("Truncating extracted text from " +
+                                std::to_string(full_text.size()) + " to " +
+                                std::to_string(max_chars_) + " characters (--max-chars).");
             full_text = full_text.substr(0, truncated_bytes);
         }
 
@@ -239,8 +240,7 @@ class PdfSummarizeCommand : public CommandBase {
 
                 for (std::size_t i = 0; i < chunks.size(); ++i) {
                     wcppcli::WLog::info("[Map " + std::to_string(i + 1) + "/" +
-                                        std::to_string(chunks.size()) +
-                                        "] Summarizing section (" +
+                                        std::to_string(chunks.size()) + "] Summarizing section (" +
                                         std::to_string(chunks[i].size()) + " chars)...");
 
                     std::string map_prompt =
@@ -258,8 +258,7 @@ class PdfSummarizeCommand : public CommandBase {
                 }
 
                 // 2) Reduce 단계: 각 섹션 요약을 통합하여 최종 요약 생성
-                wcppcli::WLog::info("[Reduce] Combining " +
-                                    std::to_string(chunk_summaries.size()) +
+                wcppcli::WLog::info("[Reduce] Combining " + std::to_string(chunk_summaries.size()) +
                                     " section summaries into final summary...");
 
                 std::string combined_summaries;
@@ -326,8 +325,8 @@ class PdfSummarizeCommand : public CommandBase {
         }
 
         return "아래는 전체 문서의 일부(" + std::to_string(chunk_idx) + "/" +
-               std::to_string(total_chunks) +
-               ") 내용입니다. 이 구역의 핵심 내용을 요약해주세요. " + lang_instruction +
+               std::to_string(total_chunks) + ") 내용입니다. 이 구역의 핵심 내용을 요약해주세요. " +
+               lang_instruction +
                "불필요한 인사말 없이 주요 내용만 명확히 요약해주세요.\n\n"
                "--- 섹션 내용 ---\n" +
                text + "\n--- 섹션 내용 끝 ---\n";
@@ -344,11 +343,14 @@ class PdfSummarizeCommand : public CommandBase {
             lang_instruction = "Write the summary in " + language + ". ";
         }
 
-        return "아래는 문서의 각 구역별 요약 내용들입니다. 이 내용들을 바탕으로 전체 문서의 통합 요약본을 작성해주세요. " +
+        return "아래는 문서의 각 구역별 요약 내용들입니다. 이 내용들을 바탕으로 전체 문서의 통합 "
+               "요약본을 작성해주세요. " +
                lang_instruction +
-               "문서의 전체적인 주요 주제, 핵심 포인트, 그리고 중요한 세부 사항을 논리적이고 깔끔한 구조(헤더, 글머리 기호 등)로 정리해주세요.\n\n"
+               "문서의 전체적인 주요 주제, 핵심 포인트, 그리고 중요한 세부 사항을 논리적이고 "
+               "깔끔한 구조(헤더, 글머리 기호 등)로 정리해주세요.\n\n"
                "--- 구역별 요약 모음 ---\n" +
-               combined_summaries + "\n--- 구역별 요약 모음 끝 ---\n\n"
+               combined_summaries +
+               "\n--- 구역별 요약 모음 끝 ---\n\n"
                "위 내용을 종합한 전체 요약을 작성해주세요.";
     }
 

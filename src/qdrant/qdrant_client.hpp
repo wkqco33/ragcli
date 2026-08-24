@@ -57,7 +57,8 @@ class QdrantClient {
         cpr::Response response = cpr::Put(cpr::Url{url}, headers, cpr::Body{req.dump()});
 
         if (response.status_code == 409 ||
-            (response.status_code == 400 && response.text.find("already exists") != std::string::npos)) {
+            (response.status_code == 400 &&
+             response.text.find("already exists") != std::string::npos)) {
             wcppcli::WLog::info("Qdrant collection '" + collection_name_ + "' already exists");
             return;
         }
@@ -106,9 +107,9 @@ class QdrantClient {
 
         const std::string url = base_url_ + "/collections/" + collection_name_ + "/points/scroll";
         json req;
-        req["filter"]["must"] = json::array({json{{"key", "source"}, {"match", {{"value", source}}}},
-                                              json{{"key", "chunk_index"},
-                                                   {"range", {{"gte", min_index}, {"lte", max_index}}}}});
+        req["filter"]["must"] = json::array(
+            {json{{"key", "source"}, {"match", {{"value", source}}}},
+             json{{"key", "chunk_index"}, {"range", {{"gte", min_index}, {"lte", max_index}}}}});
         req["with_payload"] = true;
         req["limit"] = max_index - min_index + 1;
 
@@ -116,7 +117,8 @@ class QdrantClient {
         cpr::Response response = cpr::Post(cpr::Url{url}, headers, cpr::Body{req.dump()});
         verify_response(response, "Qdrant scroll failed");
 
-        json res = parse_json_safely(JsonText{response.text}, JsonContext{"Qdrant scroll response"});
+        json res =
+            parse_json_safely(JsonText{response.text}, JsonContext{"Qdrant scroll response"});
         std::vector<SearchResultItem> results;
         if (!res.contains("result") || !res["result"].contains("points") ||
             !res["result"]["points"].is_array()) {
@@ -177,11 +179,13 @@ class QdrantClient {
             payload["image_width"] = data.image_width;
             payload["image_height"] = data.image_height;
             if (!data.image_base64.empty()) {
-                constexpr std::size_t k_max_image_base64_bytes = 20 * 1024 * 1024; // 20 MB 안전 한계
+                constexpr std::size_t k_max_image_base64_bytes =
+                    20 * 1024 * 1024; // 20 MB 안전 한계
                 if (data.image_base64.size() > k_max_image_base64_bytes) {
-                    wcppcli::WLog::warn(
-                        "Image base64 size (" + std::to_string(data.image_base64.size()) +
-                        " bytes) exceeds safe Qdrant limit (20MB). Omitting image base64 payload to prevent HTTP 400 error.");
+                    wcppcli::WLog::warn("Image base64 size (" +
+                                        std::to_string(data.image_base64.size()) +
+                                        " bytes) exceeds safe Qdrant limit (20MB). Omitting image "
+                                        "base64 payload to prevent HTTP 400 error.");
                 } else {
                     payload["image_base64"] = data.image_base64;
                 }

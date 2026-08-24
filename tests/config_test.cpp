@@ -1,10 +1,10 @@
-#include <gtest/gtest.h>
-#include <filesystem>
-#include <fstream>
 #include "cmd/config.hpp"
 #include "utils/config_path.hpp"
 #include "wcppcli/wcli.hpp"
 #include "wcppcli/wconf.hpp"
+#include <filesystem>
+#include <fstream>
+#include <gtest/gtest.h>
 
 TEST(ConfigPath, GetConfigDirIsNotEmpty) {
     std::string dir = ragcli::utils::get_config_dir();
@@ -32,4 +32,15 @@ TEST(ConfigCommand, HasExpectedSubcommands) {
     EXPECT_EQ(config_cmd->subcommands[0]->name, "init");
     EXPECT_EQ(config_cmd->subcommands[1]->name, "set");
     EXPECT_EQ(config_cmd->subcommands[2]->name, "path");
+}
+
+TEST(ConfigCommand, MasksSensitiveValuesWhenDisplayed) {
+    EXPECT_EQ(
+        ragcli::cmd::ConfigCommand::mask_sensitive_config_line("OPENAI_API_KEY=sk-test-value"),
+        "OPENAI_API_KEY=***");
+    EXPECT_EQ(ragcli::cmd::ConfigCommand::mask_sensitive_config_line(
+                  "AZURE_OPENAI_API_KEY: \"azure-secret\""),
+              "AZURE_OPENAI_API_KEY: \"***\"");
+    EXPECT_EQ(ragcli::cmd::ConfigCommand::mask_sensitive_config_line("LLM_PROVIDER=ollama"),
+              "LLM_PROVIDER=ollama");
 }

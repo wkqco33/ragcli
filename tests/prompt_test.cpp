@@ -29,7 +29,7 @@ TEST(PromptBuilder, RendersDocBlocksWithMetadataAndOmitsEmptyAttributes) {
 
     EXPECT_NE(prompt.find("<doc id=\"1\" source=\"docs/architecture.md\" section=\"설계 > 인덱싱\" "
                           "chunk=\"2/7\" score=\"0.8312\">"),
-             std::string::npos);
+              std::string::npos);
     EXPECT_NE(prompt.find("<doc id=\"2\" score=\"0.5000\">"), std::string::npos);
     EXPECT_EQ(prompt.find("source=\"\""), std::string::npos); // 빈 속성은 생략되어야 함
     EXPECT_NE(prompt.find("[1]"), std::string::npos);         // 인용 지시 포함

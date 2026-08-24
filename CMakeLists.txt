@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(ragcli LANGUAGES CXX)
+project(ragcli VERSION 0.1.0 LANGUAGES CXX)
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg.json" AND NOT CMAKE_TOOLCHAIN_FILE)
   message(WARNING "vcpkg.json detected but CMAKE_TOOLCHAIN_FILE is not set. Packages might not be found. Please run cmake with -DCMAKE_TOOLCHAIN_FILE=[vcpkg_path]/scripts/buildsystems/vcpkg.cmake")
 endif()
@@ -9,6 +9,10 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+if(MSVC)
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" CACHE STRING "" FORCE)
+endif()
 
 if(WIN32)
   # Windows.h 의 min/max 매크로가 std::min/std::max 등과 충돌(C2589) 하는 것을
@@ -32,7 +36,7 @@ include(FetchContent)
 FetchContent_Declare(
   llm_client
   GIT_REPOSITORY https://gitlab.com/wkqco33/LLM_client.git
-  GIT_TAG        main
+  GIT_TAG        165bc4abb8a27bb0c3213b1557027931062393ba
   PATCH_COMMAND  ${CMAKE_COMMAND}
                   -DSOURCE_DIR=<SOURCE_DIR>
                   -DPATCH_FILE=${CMAKE_CURRENT_SOURCE_DIR}/cmake/ollama-native-image-format.patch

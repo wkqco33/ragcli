@@ -121,7 +121,6 @@ class OcrCommand : public CommandBase {
         return 0;
     }
 
-    // 이미지 파일의 raw bytes 를 읽어온다.
     static auto read_file_bytes(const std::string &path) -> std::vector<uint8_t> {
         std::ifstream file(path, std::ios::binary);
         if (!file.is_open()) {
@@ -133,14 +132,12 @@ class OcrCommand : public CommandBase {
         return std::vector<uint8_t>(str.begin(), str.end());
     }
 
-    // 파일 확장자로부터 MIME 타입을 결정한다.
     static auto detect_mime_type(const std::string &path) -> std::string {
         const std::size_t dot_pos = path.rfind('.');
         if (dot_pos == std::string::npos) {
             return "image/jpeg";
         }
         std::string ext = path.substr(dot_pos);
-        // 소문자 변환
         for (auto &c : ext) {
             c = static_cast<char>(std::tolower(c));
         }

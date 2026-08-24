@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
 #include "utils/image_utils.hpp"
+#include <gtest/gtest.h>
 
 namespace ragcli::utils {
 

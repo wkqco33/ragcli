@@ -9,9 +9,7 @@
 
 namespace ragcli::rag {
 
-// QdrantPort 검색 결과 한 건. qdrant::QdrantClient::SearchResultItem 과 필드가
-// 같지만, RAG 로직이 Qdrant 전용 타입에 직접 의존하지 않도록 분리했다 (다른
-// 벡터 스토어로 교체할 때 이 구조체만 채우면 된다).
+// QdrantPort 검색 결과 한 건 (qdrant::QdrantClient::SearchResultItem 과 동일 필드).
 struct SearchHit {
     std::string text;
     std::string title;
@@ -25,8 +23,7 @@ struct SearchHit {
     std::string image_base64;
 };
 
-// QdrantPort::upsert_point 에 전달하는 페이로드. qdrant::QdrantClient::PointData
-// 와 필드가 같지만 위와 같은 이유로 분리했다.
+// QdrantPort::upsert_point 에 전달하는 페이로드 (qdrant::QdrantClient::PointData 와 동일 필드).
 struct UpsertPoint {
     std::string content;
     std::string title;
@@ -42,10 +39,8 @@ struct UpsertPoint {
     std::string image_base64;
 };
 
-// RAG 로직에서 필요한 Qdrant 기능만 노출하는 포트.
-// search/upsert_point 는 SearchHit/UpsertPoint 라는 벡터 스토어 중립 타입만
-// 주고받으므로, 다른 벡터 DB로 교체하려면 이 인터페이스의 새 구현체만 추가하면
-// 된다 (qdrant::QdrantClient 의 타입이 RAG/Indexer 쪽 코드로 새어나가지 않는다).
+// RAG 로직에서 필요한 Qdrant 기능만 노출하는 포트. 벡터 스토어 중립 타입만 주고받으므로
+// 다른 벡터 DB로 교체하려면 이 인터페이스의 새 구현체만 추가하면 된다.
 class QdrantPort {
   public:
     virtual ~QdrantPort() = default;
@@ -66,8 +61,7 @@ class QdrantPort {
                               const UpsertPoint &data) const -> void = 0;
 };
 
-// 실제 qdrant::QdrantClient 를 QdrantPort 에 적응시킨 어댑터.
-// 중립 타입(SearchHit/UpsertPoint) <-> Qdrant 전용 타입 변환은 이 클래스 안에서만 일어난다.
+// 실제 qdrant::QdrantClient 를 QdrantPort 에 적응시키는 어댑터 (중립 타입 변환은 여기서만).
 class QdrantClientAdapter : public QdrantPort {
   public:
     explicit QdrantClientAdapter(std::shared_ptr<qdrant::QdrantClient> client)
@@ -109,8 +103,8 @@ class QdrantClientAdapter : public QdrantPort {
     }
 
   private:
-    static auto to_hits(std::vector<qdrant::QdrantClient::SearchResultItem> &items)
-        -> std::vector<SearchHit> {
+    static auto
+    to_hits(std::vector<qdrant::QdrantClient::SearchResultItem> &items) -> std::vector<SearchHit> {
         std::vector<SearchHit> hits;
         hits.reserve(items.size());
         for (auto &item : items) {
